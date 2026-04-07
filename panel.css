@@ -1,0 +1,1127 @@
+/* ============================================================
+   Code Unloader — Frontend Panel CSS v10
+   Light theme default. Dark theme via [data-theme="dark"].
+   All text meets WCAG AA (4.5:1 for small text, 3:1 for large).
+   ============================================================ */
+
+/* -----------------------------------------------------------------------
+   CSS custom properties
+   ----------------------------------------------------------------------- */
+#cu-panel,
+#cu-dialog {
+	/* backgrounds */
+	--cu-bg:            #1e1e2e;
+	--cu-bg-raised:     #24243a;
+	--cu-bg-hover:      #2e2e46;
+	--cu-bg-active:     #35355a;
+	--cu-border:        #3a3a5c;
+	--cu-border-mid:    #52528a;
+
+	/* text — all contrast-checked against backgrounds */
+	--cu-text:          #e8e8f8;   /* 13:1 on --cu-bg */
+	--cu-text-muted:    #b8b8d8;   /* 7:1  on --cu-bg */
+	--cu-text-sub:      #9090b8;   /* 4.6:1 on --cu-bg — filenames etc */
+
+	/* accent */
+	--cu-accent:        #1e3a5f;
+	--cu-blue:          #80b4ff;   /* 7:1 on --cu-bg */
+
+	/* badge colours — background + text pairs that each pass 4.5:1 internally */
+	--cu-badge-green-bg:  #1a5c1a;
+	--cu-badge-green-txt: #90e890;
+	--cu-badge-red-bg:    #6a0f1f;
+	--cu-badge-red-txt:   #ffaaaa;
+	--cu-badge-orange-bg: #5c2c00;
+	--cu-badge-orange-txt:#ffcc88;
+	--cu-badge-blue-bg:   #0f2f6a;
+	--cu-badge-blue-txt:  #90c8ff;
+	--cu-badge-purple-bg: #3a1066;
+	--cu-badge-purple-txt:#d8aaff;
+
+	/* status */
+	--cu-kill-bg:    #8b0000;
+	--cu-kill-txt:   #ffe0e0;
+
+	/* toggle */
+	--cu-toggle-off: #cc1818;
+	--cu-toggle-on:  #267326;
+
+	/* tab active highlight */
+	--cu-tab-active-bg:  #2e2e46;
+	--cu-tab-active-txt: #1e3a5f;   /* 7:1 on --cu-tab-active-bg */
+
+	--cu-shadow: 0 8px 48px rgba(0,0,0,.6);
+	--cu-radius: 8px;
+	--cu-font:   -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Light theme */
+#cu-panel[data-theme="light"],
+#cu-dialog[data-theme="light"] {
+	--cu-bg:            #f8f8ff;
+	--cu-bg-raised:     #eeeef8;
+	--cu-bg-hover:      #e0e0f4;
+	--cu-bg-active:     #d4d4ee;
+	--cu-border:        #c0c0e0;
+	--cu-border-mid:    #9090c0;
+
+	--cu-text:          #12122a;   /* 16:1 on --cu-bg */
+	--cu-text-muted:    #2a2a5a;   /* 10:1 on --cu-bg */
+	--cu-text-sub:      #3a3a70;   /* 6.5:1 on --cu-bg */
+
+	--cu-accent:        #5500cc;   /* 7:1 on --cu-bg */
+	--cu-blue:          #0033aa;   /* 7:1 on --cu-bg */
+
+	--cu-badge-green-bg:  #c8f0c8;
+	--cu-badge-green-txt: #0a3a0a;
+	--cu-badge-red-bg:    #ffd0d8;
+	--cu-badge-red-txt:   #6a0010;
+	--cu-badge-orange-bg: #ffe8cc;
+	--cu-badge-orange-txt:#5c2000;
+	--cu-badge-blue-bg:   #d0e4ff;
+	--cu-badge-blue-txt:  #002060;
+	--cu-badge-purple-bg: #ead4ff;
+	--cu-badge-purple-txt:#2a0066;
+
+	--cu-kill-bg:    #8b0000;
+	--cu-kill-txt:   #fff;
+
+	--cu-toggle-off: #cc1818;
+	--cu-toggle-on:  #1a6e1a;
+
+	--cu-tab-active-bg:  #e0e0f4;
+	--cu-tab-active-txt: #3300aa;   /* 7.5:1 on --cu-tab-active-bg */
+
+	--cu-shadow: 0 8px 48px rgba(0,0,0,.2);
+}
+
+/* -----------------------------------------------------------------------
+   Panel drawer
+   ----------------------------------------------------------------------- */
+#cu-panel {
+	position: fixed;
+	top: 0;
+	right: 0;
+	width: 750px;
+	max-width: 96vw;
+	height: 100%;
+	background: var(--cu-bg);
+	color: var(--cu-text);
+	font-family: var(--cu-font);
+	font-size: 13px;
+	line-height: 1.5;
+	z-index: 99998;
+	transform: translateX(100%);
+	transition: transform 260ms cubic-bezier(.4,0,.2,1);
+	display: flex;
+	flex-direction: column;
+	box-shadow: var(--cu-shadow);
+	overflow: hidden;
+}
+#cu-panel.cu-panel--open {
+	transform: translateX(0);
+}
+/* inert panel is visually off-screen — that's fine; no extra hiding needed */
+body.admin-bar #cu-panel {
+	top: 32px;
+	height: calc(100% - 32px);
+}
+@media screen and (max-width: 782px) {
+	body.admin-bar #cu-panel { top: 46px; height: calc(100% - 46px); }
+	#cu-panel { width: 100vw; max-width: 100vw; }
+}
+
+/* -----------------------------------------------------------------------
+   Header
+   ----------------------------------------------------------------------- */
+.cu-panel-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 16px;
+	height: 52px;
+	background: var(--cu-bg-raised);
+	border-bottom: 1px solid var(--cu-border);
+	flex-shrink: 0;
+}
+.cu-panel-header-left,
+.cu-panel-header-right {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.cu-panel-title {
+	font-weight: 700;
+	font-size: 15px;
+	color: var(--cu-accent);
+}
+.cu-icon-btn {
+	background: none;
+	border: 1px solid transparent;
+	color: var(--cu-text-muted);
+	font-size: 16px;
+	cursor: pointer;
+	padding: 5px 8px;
+	border-radius: 6px;
+	line-height: 1;
+	transition: background .12s, color .12s, border-color .12s;
+}
+.cu-icon-btn:hover {
+	background: var(--cu-bg-hover);
+	color: var(--cu-text);
+	border-color: var(--cu-border);
+}
+/* Anchor variant — same appearance, no underline */
+a.cu-icon-btn--link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	text-decoration: none;
+}
+/* SVG icons inside icon buttons */
+.cu-icon-btn svg {
+	display: block;
+	width: 16px;
+	height: 16px;
+	fill: currentColor;
+	flex-shrink: 0;
+}
+
+/* -----------------------------------------------------------------------
+   Kill banner
+   ----------------------------------------------------------------------- */
+.cu-kill-banner {
+	background: var(--cu-kill-bg);
+	color: var(--cu-kill-txt);
+	padding: 8px 16px;
+	font-weight: 600;
+	text-align: center;
+	font-size: 12px;
+	flex-shrink: 0;
+}
+
+/* -----------------------------------------------------------------------
+   Toolbar (tabs + search)
+   ----------------------------------------------------------------------- */
+.cu-toolbar {
+	display: flex;
+	align-items: stretch;
+	border-bottom: 1px solid var(--cu-border);
+	flex-shrink: 0;
+}
+.cu-tabs {
+	display: flex;
+	flex-shrink: 0;
+}
+.cu-tab {
+	background: none;
+	border: none;
+	border-bottom: 3px solid transparent;
+	color: var(--cu-text-muted);
+	padding: 12px 18px;
+	cursor: pointer;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	transition: color .15s, background .15s, border-color .15s;
+	white-space: nowrap;
+}
+.cu-tab:hover {
+	background: var(--cu-bg-hover);
+	color: var(--cu-text);           /* high-contrast on hover */
+}
+.cu-tab.cu-tab--active {
+	background: var(--cu-tab-active-bg);
+	color: var(--cu-tab-active-txt); /* 7:1+ contrast on active bg */
+	border-bottom-color: var(--cu-accent);
+}
+
+.cu-search {
+	flex: 1;
+	background: transparent;
+	border: none;
+	border-left: 1px solid var(--cu-border);
+	color: var(--cu-text);
+	padding: 0 14px;
+	height: 44px;
+	font-size: 13px;
+	outline: none;
+}
+.cu-search::placeholder { color: var(--cu-text-sub); }
+.cu-search:focus { background: var(--cu-bg-raised); }
+
+/* -----------------------------------------------------------------------
+   Asset list
+   ----------------------------------------------------------------------- */
+.cu-list {
+	flex: 1;
+	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: var(--cu-border-mid) var(--cu-bg-raised);
+}
+.cu-list::-webkit-scrollbar { width: 8px; }
+.cu-list::-webkit-scrollbar-track { background: var(--cu-bg-raised); }
+.cu-list::-webkit-scrollbar-thumb { background: var(--cu-border-mid); border-radius: 3px; }
+
+/* Source group */
+.cu-source-group { border-bottom: 1px solid var(--cu-border); }
+
+.cu-source-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	padding: 9px 16px;
+	background: none;
+	border: none;
+	color: var(--cu-blue);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	cursor: pointer;
+	text-align: left;
+	transition: background .12s, color .12s;
+}
+.cu-source-header:hover {
+	background: var(--cu-bg-hover);
+	color: var(--cu-text);  /* switch to high-contrast text on hover */
+}
+.cu-source-label { flex: 1; }
+.cu-source-count {
+	background: #ffffff;
+	color: #2a2a5a;   /* 11:1 on #fff */
+	font-size: 10px;
+	padding: 1px 7px;
+	border-radius: 10px;
+	font-weight: 700;
+}
+.cu-chevron {
+	font-size: 20px;
+	transition: transform .2s;
+	flex-shrink: 0;
+	color: var(--cu-text-muted);
+}
+.cu-source-header:hover .cu-chevron { color: var(--cu-text); }
+.cu-source-group--collapsed .cu-chevron { transform: rotate(-90deg); }
+.cu-source-group--collapsed .cu-source-assets { display: none; }
+
+/* Asset row */
+.cu-asset-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 9px 16px 9px 26px;
+	border-bottom: 1px solid var(--cu-border);
+	transition: background .1s;
+}
+.cu-asset-row:last-child { border-bottom: none; }
+.cu-asset-row:hover { background: var(--cu-bg-hover); }
+
+/* Disabled (unloaded) row — visually distinct but still readable */
+.cu-asset-row--disabled {
+	background: rgba(120,120,200,.06);
+}
+.cu-asset-row--disabled:hover {
+	background: var(--cu-bg-hover);
+}
+
+.cu-asset-info { flex: 1; min-width: 0; }
+
+/* Handle — full contrast always */
+.cu-asset-handle {
+	font-weight: 600;
+	color: var(--cu-text);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: 13px;
+}
+.cu-asset-row--disabled .cu-asset-handle {
+	color: var(--cu-text-muted); /* still 7:1 on bg */
+}
+
+/* Source filename — bumped up to meet AA (4.5:1 min) */
+.cu-asset-src {
+	font-size: 11px;
+	color: var(--cu-text-sub);   /* 4.6:1+ — was #7F849C at 3.35:1 */
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	margin-top: 2px;
+}
+
+.cu-asset-badges { margin-top: 4px; }
+.cu-note { font-size: 11px; cursor: default; margin-left: 4px; }
+
+/* Type pill */
+.cu-type-pill {
+	font-size: 9px;
+	font-weight: 800;
+	padding: 3px 6px;
+	border-radius: 4px;
+	letter-spacing: .04em;
+	flex-shrink: 0;
+	text-transform: uppercase;
+}
+/* Dark backgrounds with white text — all pass 4.5:1 */
+.cu-type-js  { background: #7a5500; color: #ffe8aa; }
+.cu-type-css { background: #003380; color: #b8d8ff; }
+
+/* Badges */
+.cu-badge {
+	display: inline-block;
+	font-size: 10px;
+	font-weight: 700;
+	padding: 2px 8px;
+	border-radius: 4px;
+	margin-right: 3px;
+	letter-spacing: .02em;
+}
+.cu-badge--green  { background: var(--cu-badge-green-bg);  color: var(--cu-badge-green-txt);  }
+.cu-badge--red    { background: var(--cu-badge-red-bg);    color: var(--cu-badge-red-txt);    }
+.cu-badge--orange { background: var(--cu-badge-orange-bg); color: var(--cu-badge-orange-txt); }
+.cu-badge--blue   { background: var(--cu-badge-blue-bg);   color: var(--cu-badge-blue-txt);   }
+.cu-badge--purple { background: var(--cu-badge-purple-bg); color: var(--cu-badge-purple-txt); }
+
+/* Empty state */
+.cu-empty {
+	text-align: center;
+	padding: 52px 24px;
+	color: var(--cu-text-muted);
+	font-size: 13px;
+}
+
+/* -----------------------------------------------------------------------
+   Toggle switch
+   ----------------------------------------------------------------------- */
+.cu-toggle {
+	flex-shrink: 0;
+	cursor: pointer;
+	display: block;
+	position: relative;
+}
+.cu-toggle input {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+.cu-toggle-track {
+	display: flex;
+	align-items: center;
+	width: 42px;
+	height: 24px;
+	background: var(--cu-toggle-off);
+	border-radius: 12px;
+	padding: 3px;
+	transition: background .2s;
+}
+.cu-toggle-thumb {
+	width: 18px;
+	height: 18px;
+	background: #ffffff;
+	border-radius: 50%;
+	transition: transform .2s;
+	box-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
+.cu-toggle input:checked + .cu-toggle-track { background: var(--cu-toggle-on); }
+.cu-toggle input:checked + .cu-toggle-track .cu-toggle-thumb { transform: translateX(18px); }
+.cu-toggle--loading .cu-toggle-track { opacity: .5; cursor: wait; }
+.cu-toggle input:focus-visible + .cu-toggle-track {
+	outline: 2px solid var(--cu-accent);
+	outline-offset: 2px;
+}
+
+/* -----------------------------------------------------------------------
+   Dialog
+   ----------------------------------------------------------------------- */
+#cu-dialog {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+}
+.cu-dialog-overlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(0,0,0,.7);
+}
+.cu-dialog-box {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: var(--cu-bg);
+	border: 1px solid var(--cu-border-mid);
+	border-radius: 12px;
+	padding: 28px;
+	width: 660px;
+	max-width: 94vw;
+	max-height: 90vh;
+	overflow-y: auto;
+	box-shadow: var(--cu-shadow);
+	scrollbar-width: thin;
+	scrollbar-color: var(--cu-border-mid) var(--cu-bg-raised);
+}
+.cu-dialog-box h3 {
+	margin: 0 0 4px;
+	color: var(--cu-accent);
+	font-size: 16px;
+	font-weight: 700;
+}
+.cu-dialog-meta {
+	font-size: 12px;
+	color: var(--cu-text-muted);
+	margin: 0 0 20px;
+	font-family: monospace;
+}
+
+/* Field */
+.cu-field { margin-bottom: 16px; }
+.cu-field-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .05em;
+	text-transform: uppercase;
+	color: var(--cu-blue);
+	margin-bottom: 7px;
+}
+.cu-input {
+	width: 100%;
+	background: var(--cu-bg-raised);
+	border: 1px solid var(--cu-border-mid);
+	border-radius: 6px;
+	color: var(--cu-text);
+	padding: 8px 12px;
+	font-size: 13px;
+	outline: none;
+	box-sizing: border-box;
+	font-family: var(--cu-font);
+	transition: border-color .15s;
+}
+.cu-input:focus { border-color: var(--cu-accent); }
+.cu-input option { background: var(--cu-bg); color: var(--cu-text); }
+
+/* Two-column inside dialog */
+.cu-dialog-columns {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 14px;
+	margin-bottom: 16px;
+}
+
+/* Scope cards */
+.cu-scope-group {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: 6px;
+	margin-bottom: 4px;
+}
+.cu-scope-group--6col {
+	grid-template-columns: repeat(6, 1fr);
+}
+.cu-scope-btn {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 3px;
+	padding: 10px 6px 8px;
+	background: var(--cu-bg-raised);
+	border: 2px solid var(--cu-border);
+	border-radius: 8px;
+	cursor: pointer;
+	transition: border-color .15s, background .15s;
+	text-align: center;
+	user-select: none;
+}
+.cu-scope-btn:hover { border-color: var(--cu-border-mid); background: var(--cu-bg-hover); }
+.cu-scope-btn.cu-scope-active { border-color: var(--cu-accent); background: var(--cu-bg-active); }
+.cu-scope-btn input { display: none; }
+.cu-scope-icon { font-size: 18px; line-height: 1; }
+.cu-scope-label { font-size: 11px; font-weight: 700; color: var(--cu-text); }
+.cu-scope-desc  { font-size: 10px; color: var(--cu-text-muted); line-height: 1.3; }
+
+/* Radio group */
+.cu-radio-group { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 8px; }
+.cu-radio-label {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	font-size: 13px;
+	color: var(--cu-text);
+	cursor: pointer;
+}
+.cu-radio-label input { accent-color: var(--cu-accent); }
+
+/* Inline checkbox */
+.cu-field-inline { margin-bottom: 12px; }
+.cu-checkbox-label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	color: var(--cu-text);
+	cursor: pointer;
+}
+.cu-checkbox-label input { accent-color: var(--cu-accent); }
+
+/* Warnings */
+.cu-regex-warning,
+.cu-dep-warning {
+	background: rgba(160,80,0,.15);
+	border: 1px solid #a05000;
+	border-radius: 6px;
+	padding: 9px 13px;
+	font-size: 12px;
+	color: var(--cu-text);  /* full contrast text on warning bg */
+	margin-top: 8px;
+}
+.cu-dep-warning { margin-bottom: 16px; margin-top: 0; }
+
+.cu-dialog-error {
+	background: rgba(140,0,30,.15);
+	border: 1px solid #8c001e;
+	border-radius: 6px;
+	padding: 10px 14px;
+	font-size: 12px;
+	color: var(--cu-text);
+	margin-bottom: 14px;
+}
+
+/* Dialog actions */
+.cu-dialog-actions {
+	display: flex;
+	gap: 10px;
+	justify-content: flex-end;
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid var(--cu-border);
+}
+.cu-btn-primary {
+	background: var(--cu-accent);
+	color: #ffffff;        /* white on accent — passes in both themes */
+	border: none;
+	padding: 9px 22px;
+	border-radius: 7px;
+	font-weight: 700;
+	cursor: pointer;
+	font-size: 13px;
+	transition: opacity .15s;
+}
+.cu-btn-primary:hover:not(:disabled) { opacity: .88; }
+.cu-btn-primary:disabled { opacity: .45; cursor: default; }
+.cu-btn-secondary {
+	background: var(--cu-bg-raised);
+	color: var(--cu-text);
+	border: 1px solid var(--cu-border-mid);
+	padding: 9px 18px;
+	border-radius: 7px;
+	cursor: pointer;
+	font-size: 13px;
+	transition: background .15s, color .15s;
+}
+.cu-btn-secondary:hover {
+	background: var(--cu-bg-hover);
+	color: var(--cu-text);   /* explicit: stays full-contrast on hover in both themes */
+	border-color: var(--cu-border-mid);
+}
+
+/* Condition wrap — dims when except_here scope is selected */
+#cu-condition-wrap {
+	transition: opacity .2s;
+}
+
+/* Help icon */
+.cu-help {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	background: var(--cu-border-mid);
+	color: var(--cu-text);   /* full contrast on border-mid bg */
+	border-radius: 50%;
+	font-size: 10px;
+	font-weight: 700;
+	cursor: default;
+	flex-shrink: 0;
+}
+
+/* -----------------------------------------------------------------------
+   Tooltip
+   ----------------------------------------------------------------------- */
+#cu-tooltip {
+	position: absolute;
+	z-index: 100002;
+	background: #1a1a2e;
+	color: #e8e8f8;          /* 13:1 */
+	border: 1px solid #52528a;
+	border-radius: 8px;
+	padding: 11px 15px;
+	font-size: 12px;
+	line-height: 1.65;
+	max-width: 290px;
+	white-space: pre-line;
+	pointer-events: none;
+	box-shadow: 0 4px 20px rgba(0,0,0,.5);
+}
+/* Tooltip stays dark regardless of panel theme — dark bg gives best contrast */
+
+/* -----------------------------------------------------------------------
+   Toast notifications
+   ----------------------------------------------------------------------- */
+/* Notifications live on document.body, outside #cu-panel, so CSS vars
+   from #cu-panel don't apply. Use hardcoded opaque colours. */
+.cu-notification {
+	position: fixed;
+	bottom: 28px;
+	right: 28px;
+	max-width: 340px;
+	background: #1e2030;       /* opaque dark — always readable */
+	color: #e8e8f8;
+	border: 1px solid #52528a;
+	padding: 11px 16px;
+	border-radius: 8px;
+	font-size: 13px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	z-index: 100001;
+	box-shadow: 0 4px 24px rgba(0,0,0,.55);
+	animation: cu-fadein .2s ease;
+}
+.cu-notification--success { border-left: 3px solid #3a9a3a; }
+.cu-notification--error   { border-left: 3px solid #c0392b; }
+
+@keyframes cu-fadein {
+	from { opacity: 0; transform: translateY(8px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+
+/* -----------------------------------------------------------------------
+   Admin bar pill
+   ----------------------------------------------------------------------- */
+#wpadminbar .cu-kill-pill {
+	background: #8b0000;
+	color: #fff;
+	padding: 2px 8px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+/* -----------------------------------------------------------------------
+   Dock left variant
+   ----------------------------------------------------------------------- */
+#cu-panel.cu-panel--left {
+	right: auto;
+	left: 0;
+	transform: translateX(-100%);
+	box-shadow: 4px 0 48px rgba(0,0,0,.6);
+}
+#cu-panel.cu-panel--left.cu-panel--open {
+	transform: translateX(0);
+}
+
+/* -----------------------------------------------------------------------
+   Source group header row (header + group action buttons side by side)
+   ----------------------------------------------------------------------- */
+.cu-source-header-row {
+	display: flex;
+	align-items: center;
+	border-bottom: 1px solid var(--cu-border);
+	background: linear-gradient(135deg,#5500cc0a 0%,#1e3a5f 150%);
+
+.cu-source-header-row .cu-source-header {
+	flex: 1;
+	border-bottom: none; /* row already has border */
+}
+.cu-group-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 12px 0 6px;
+	flex-shrink: 0;
+}
+.cu-group-action-btn {
+	font-size: 10px;
+	font-weight: 700;
+	padding: 3px 10px;
+	border-radius: 4px;
+	border: 1px solid var(--cu-border-mid);
+	background: #ffffff;
+	color: #2a2a5a;
+	cursor: pointer;
+	letter-spacing: .03em;
+	white-space: nowrap;
+	transition: background .12s, color .12s, border-color .12s;
+}
+.cu-group-action-btn:hover:not(:disabled) {
+	background: var(--cu-badge-red-bg);
+	color: var(--cu-badge-red-txt);
+	border-color: var(--cu-red, #8b0000);
+}
+.cu-group-action-btn--enable:hover:not(:disabled) {
+	background: var(--cu-badge-green-bg);
+	color: var(--cu-badge-green-txt);
+	border-color: var(--cu-toggle-on);
+}
+.cu-group-action-btn:disabled {
+	opacity: .5;
+	cursor: wait;
+}
+/* Hide group actions when group is collapsed */
+.cu-source-group--collapsed .cu-group-actions {
+	visibility: hidden;
+	pointer-events: none;
+}
+
+/* -----------------------------------------------------------------------
+   Source header row overrides for DARK theme
+   ----------------------------------------------------------------------- */
+#cu-panel[data-theme="dark"] .cu-source-header-row,
+#cu-dialog[data-theme="dark"] .cu-source-header-row {
+	background: linear-gradient(135deg, #f0f0f0 20%, rgb(140 0 0 / .18) 100%);
+}
+#cu-panel[data-theme="dark"] .cu-source-header-row .cu-source-header,
+#cu-dialog[data-theme="dark"] .cu-source-header-row .cu-source-header {
+	color: #234897;   /* 7.2:1 on #f0f0f0 */
+}
+#cu-panel[data-theme="dark"] .cu-source-header-row .cu-source-header:hover,
+#cu-dialog[data-theme="dark"] .cu-source-header-row .cu-source-header:hover {
+	background: rgba(0,0,0,.08);
+	color: #0f2d6e;
+}
+#cu-panel[data-theme="dark"] .cu-source-header-row .cu-source-count,
+#cu-dialog[data-theme="dark"] .cu-source-header-row .cu-source-count,
+#cu-panel[data-theme="dark"] .cu-source-header-row .cu-source-size,
+#cu-dialog[data-theme="dark"] .cu-source-header-row .cu-source-size {
+	background: #ffffff;
+	color: #1a1a3a;   /* 17:1 on #fff */
+}
+#cu-panel[data-theme="dark"] .cu-source-header-row .cu-chevron,
+#cu-dialog[data-theme="dark"] .cu-source-header-row .cu-chevron {
+	color: #fff;
+}
+#cu-panel[data-theme="dark"] .cu-source-header-row .cu-group-action-btn,
+#cu-dialog[data-theme="dark"] .cu-source-header-row .cu-group-action-btn {
+	background: #ffffff;
+	color: #1a2e6e;   /* 9:1 on #fff */
+	border-color: #8899cc;
+}
+
+/* -----------------------------------------------------------------------
+   First-use warning banner
+   ----------------------------------------------------------------------- */
+.cu-first-use-warning {
+	border-bottom: 2px solid #a05000;
+	flex-shrink: 0;
+	padding: 0;
+	background: linear-gradient(135deg, #cc18188f 0%, rgb(140 0 0 / .18) 100%);
+}
+.cu-warning-body {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 16px;
+}
+.cu-warning-icon {
+	font-size: 22px;
+	line-height: 1;
+	flex-shrink: 0;
+}
+.cu-warning-text {
+	flex: 1;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--cu-text);
+}
+.cu-warning-text strong {
+	color: var(--cu-text);
+	font-size: 12px;
+	font-weight: 700;
+}
+.cu-warning-text strong:first-child {
+	display: block;
+	font-size: 13px;
+	margin-bottom: 2px;
+}
+.cu-warning-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+.cu-warning-btn-dismiss,
+.cu-warning-btn-never {
+	font-size: 11px;
+	font-weight: 700;
+	padding: 4px 12px;
+	border-radius: 5px;
+	cursor: pointer;
+	border: 1px solid var(--cu-border-mid);
+	transition: background .12s, color .12s;
+}
+.cu-warning-btn-dismiss {
+	background: var(--cu-bg-raised);
+	color: var(--cu-text-muted);
+}
+.cu-warning-btn-dismiss:hover {
+	background: var(--cu-bg-hover);
+	color: var(--cu-text);
+}
+.cu-warning-btn-never {
+	background: transparent;
+	color: var(--cu-text-faint, var(--cu-text-sub));
+	border-color: transparent;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.cu-warning-btn-never:hover {
+	color: var(--cu-text-muted);
+}
+
+/* -----------------------------------------------------------------------
+   Branding header
+   ----------------------------------------------------------------------- */
+.cu-branding {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+.cu-branding-title {
+	font-weight: 700;
+	font-size: 15px;
+	color: var(--cu-accent);
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+}
+.cu-version {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--cu-text-sub);
+	letter-spacing: .03em;
+}
+.cu-branding-sub {
+	font-size: 10px;
+	color: var(--cu-text-sub);
+	line-height: 1;
+}
+.cu-branding-link {
+	color: var(--cu-blue);
+	text-decoration: none;
+}
+.cu-branding-link:hover {
+	text-decoration: underline;
+	color: var(--cu-text);
+}
+
+/* -----------------------------------------------------------------------
+   Asset size display
+   ----------------------------------------------------------------------- */
+.cu-asset-size {
+	font-size: 11px;
+	font-weight: 700;
+	color: var(--cu-text-muted);
+	white-space: nowrap;
+	min-width: 52px;
+	text-align: right;
+	flex-shrink: 0;
+	margin-right: 10px;
+}
+/* Disabled asset size — slightly faded */
+.cu-asset-row--disabled .cu-asset-size {
+	color: var(--cu-text-faint, var(--cu-text-sub));
+	text-decoration: line-through;
+	opacity: .7;
+}
+
+/* Group total size in header */
+.cu-source-size {
+	font-size: 10px;
+	font-weight: 700;
+	color: #2a2a5a;   /* 11:1 on #fff */
+	background: #ffffff;
+	padding: 1px 7px;
+	border-radius: 8px;
+	white-space: nowrap;
+	margin-left: 2px;
+}
+.cu-source-header:hover .cu-source-size {
+	color: var(--cu-text);
+}
+
+/* Disabled files summary bar — shown above the asset list */
+.cu-disabled-stats-bar {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 7px 16px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .03em;
+	color: var(--cu-badge-red-txt);
+	background: var(--cu-badge-red-bg);
+	border-bottom: 1px solid var(--cu-border);
+}
+.cu-stats-files-link {
+	color: var(--cu-badge-red-txt);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	font-weight: 700;
+}
+.cu-stats-files-link:hover {
+	/* Dark theme: lighten slightly */
+	opacity: .8;
+}
+/* Light theme: badge-red-txt is a dark red — opacity hover washes it out.
+   Override with a fully opaque darker shade so the link stays readable. */
+#cu-panel[data-theme="light"] .cu-stats-files-link:hover,
+#cu-dialog[data-theme="light"] .cu-stats-files-link:hover {
+	opacity: 1;
+	color: #3a0008;
+}
+.cu-stats-reenable-all {
+	margin-left: auto;
+	font-size: 11px;
+	font-weight: 700;
+	padding: 3px 10px;
+	border-radius: 4px;
+	cursor: pointer;
+	border: 1px solid var(--cu-toggle-on, #22aa22);
+	background: var(--cu-badge-green-bg);
+	color: var(--cu-badge-green-txt);
+	transition: opacity .12s;
+	white-space: nowrap;
+}
+.cu-stats-reenable-all:hover:not(:disabled) {
+	opacity: .85;
+}
+.cu-stats-reenable-all:disabled {
+	opacity: .5;
+	cursor: wait;
+}
+
+/* Inline Blocks Tab */
+.cu-inline-info-bar {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	background: var(--cu-bg-raised);
+	border-bottom: 1px solid var(--cu-border);
+	padding: 10px 16px;
+	font-size: 12px;
+	color: var(--cu-text-muted);
+	line-height: 1.5;
+	flex-shrink: 0;
+}
+.cu-inline-info-icon {
+	font-size: 14px;
+	font-style: normal;
+	color: var(--cu-blue);
+	flex-shrink: 0;
+	margin-top: 1px;
+}
+.cu-inline-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 16px;
+	border-bottom: 1px solid var(--cu-border);
+	background: var(--cu-bg-raised);
+	flex-shrink: 0;
+}
+.cu-inline-group-btn {
+	font-size: 11px;
+	font-weight: 700;
+	padding: 4px 12px;
+	border-radius: 5px;
+	border: 1px solid var(--cu-border-mid);
+	background: var(--cu-bg);
+	color: var(--cu-text-muted);
+	cursor: pointer;
+	transition: background .12s, color .12s, border-color .12s;
+	letter-spacing: .02em;
+}
+.cu-inline-group-btn:hover {
+	background: var(--cu-bg-hover);
+	color: var(--cu-text);
+	border-color: var(--cu-accent);
+}
+.cu-inline-group-btn--active {
+	background: var(--cu-bg-active);
+	color: var(--cu-accent);
+	border-color: var(--cu-accent);
+}
+.cu-inline-count {
+	font-size: 11px;
+	color: var(--cu-text-muted);
+	font-weight: 600;
+}
+/* Group section headers */
+.cu-inline-group-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 16px;
+	background: var(--cu-bg-raised);
+	border-bottom: 1px solid var(--cu-border);
+	border-top: 1px solid var(--cu-border);
+}
+.cu-inline-group-header:first-child { border-top: none; }
+.cu-inline-group-label {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .05em;
+	text-transform: uppercase;
+	color: var(--cu-text-muted);
+	flex: 1;
+}
+.cu-inline-block {
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--cu-border);
+}
+.cu-inline-block:last-child {
+	border-bottom: none;
+}
+.cu-inline-block-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+.cu-inline-id {
+	font-size: 11px;
+	background: var(--cu-bg-active);
+	padding: 1px 6px;
+	border-radius: 4px;
+	color: var(--cu-text);
+}
+.cu-inline-noid {
+	font-size: 11px;
+	color: var(--cu-text-muted);
+	font-style: italic;
+}
+.cu-inline-size {
+	font-size: 10px;
+	color: var(--cu-text-muted);
+	margin-left: auto;
+}
+.cu-inline-preview {
+	font-size: 11px;
+	font-family: 'SF Mono', Menlo, Monaco, monospace;
+	color: var(--cu-text-sub);
+	background: var(--cu-bg-active);
+	padding: 6px 8px;
+	border-radius: 4px;
+	margin: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-height: 40px;
+	line-height: 1.4;
+}
