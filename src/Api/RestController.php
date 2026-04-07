@@ -177,6 +177,26 @@ class RestController {
 		$group_id = isset( $data['group_id'] ) && $data['group_id'] !== '' ? (int) $data['group_id'] : null;
 		$updated  = 0;
 		foreach ( $ids as $id ) {
+			$existing_rule = RuleRepository::get_rule( $id );
+			if ( null === $existing_rule ) {
+				continue;
+			}
+			// Check if assigning this rule to $group_id would create a duplicate
+			// in the target scope. Exclude the rule's own ID so it doesn't match itself.
+			$candidate = [
+				'url_pattern'      => $existing_rule->url_pattern,
+				'match_type'       => $existing_rule->match_type,
+				'asset_handle'     => $existing_rule->asset_handle,
+				'asset_type'       => $existing_rule->asset_type,
+				'device_type'      => $existing_rule->device_type,
+				'condition_type'   => $existing_rule->condition_type,
+				'condition_value'  => $existing_rule->condition_value,
+				'condition_invert' => $existing_rule->condition_invert,
+				'group_id'         => $group_id,
+			];
+			if ( null !== RuleRepository::find_duplicate( $candidate, $id ) ) {
+				continue; // Would be a duplicate in the target scope — skip silently.
+			}
 			if ( RuleRepository::update_rule( $id, [ 'group_id' => $group_id ] ) ) {
 				$updated++;
 			}
