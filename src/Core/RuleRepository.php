@@ -50,9 +50,65 @@ class RuleRepository {
 		return $row;
 	}
 
-	/** Insert a new rule. Returns new ID or WP_Error. */
+	/**
+	 * Find an existing rule that matches all 9 duplicate-key fields in the same scope.
+	 * NULL group_id (ungrouped) is treated as a distinct scope equal to other NULLs.
+	 * Bypasses the request-scoped cache — always queries the DB directly.
+	 *
+	 * @param array $data       Rule field array (same shape as passed to create_rule).
+	 * @param int   $exclude_id Optional rule ID to exclude from the match (used when reassigning group).
+	 * @return object|null Matching row, or null if no duplicate exists.
+	 */
+	public static function find_duplicate( array $data, int $exclude_id = 0 ): ?object {
+		global $wpdb;
+
+		$device_type      = $data['device_type']      ?? 'all';
+		$condition_type   = $data['condition_type']   ?? null;
+		$condition_value  = $data['condition_value']  ?? null;
+		$condition_invert = (int) ( $data['condition_invert'] ?? 0 );
+		$group_id         = ( isset( $data['group_id'] ) && '' !== $data['group_id'] && null !== $data['group_id'] )
+			? (int) $data['group_id']
+			: null;
+
+		// Build nullable-field clauses — wpdb::prepare() cannot express IS NULL.
+		$cond_type_clause  = null === $condition_type  ? 'condition_type IS NULL'  : $wpdb->prepare( 'condition_type = %s', $condition_type );
+		$cond_value_clause = null === $condition_value ? 'condition_value IS NULL' : $wpdb->prepare( 'condition_value = %s', $condition_value );
+		$group_clause      = null === $group_id        ? 'group_id IS NULL'        : $wpdb->prepare( 'group_id = %d', $group_id );
+		$exclude_clause    = $exclude_id > 0           ? $wpdb->prepare( 'AND id != %d', $exclude_id ) : ''; // 0 = no exclusion (default)
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM {$wpdb->prefix}cu_rules
+			 WHERE url_pattern      = %s
+			   AND match_type       = %s
+			   AND asset_handle     = %s
+			   AND asset_type       = %s
+			   AND device_type      = %s
+			   AND condition_invert = %d
+			   AND {$cond_type_clause}
+			   AND {$cond_value_clause}
+			   AND {$group_clause}
+			   {$exclude_clause}
+			 LIMIT 1",
+			$data['url_pattern'],
+			$data['match_type'],
+			$data['asset_handle'],
+			$data['asset_type'],
+			$device_type,
+			$condition_invert
+		) ) ?: null;
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	}
+
+	/** Insert a new rule. Returns new ID, or existing ID if an identical rule already exists in the same scope (silent deduplication). Returns WP_Error on DB failure. */
 	public static function create_rule( array $data ): int|\WP_Error {
 		global $wpdb;
+
+		// Silently skip insert if an identical rule already exists in the same scope.
+		$existing = self::find_duplicate( $data );
+		if ( null !== $existing ) {
+			return (int) $existing->id;
+		}
 
 		$now = current_time( 'mysql', true );
 
@@ -68,7 +124,7 @@ class RuleRepository {
 				'condition_type'  => $data['condition_type']  ?? null,
 				'condition_value' => $data['condition_value'] ?? null,
 				'condition_invert'=> (int) ( $data['condition_invert'] ?? 0 ),
-				'group_id'        => $data['group_id']        ?? null,
+				'group_id'        => ( isset( $data['group_id'] ) && '' !== $data['group_id'] && null !== $data['group_id'] ) ? (int) $data['group_id'] : null,
 				'label'           => $data['label']           ?? null,
 				'created_by'      => get_current_user_id() ?: null,
 				'created_at'      => $now,
