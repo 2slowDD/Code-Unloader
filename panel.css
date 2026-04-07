@@ -90,7 +90,7 @@
 	--cu-toggle-on:  #1a6e1a;
 
 	--cu-tab-active-bg:  #e0e0f4;
-	--cu-tab-active-txt: #3300aa;   /* 7.5:1 on --cu-tab-active-bg */
+	--cu-tab-active-txt: #1e3a5f;   /* 7.5:1 on --cu-tab-active-bg */
 
 	--cu-shadow: 0 8px 48px rgba(0,0,0,.2);
 }
@@ -602,7 +602,7 @@ a.cu-icon-btn--link {
 	border-top: 1px solid var(--cu-border);
 }
 .cu-btn-primary {
-	background: var(--cu-accent);
+	background: #1e3a5f;
 	color: #ffffff;        /* white on accent — passes in both themes */
 	border: none;
 	padding: 9px 22px;
