@@ -732,7 +732,7 @@ a.cu-icon-btn--link {
 	display: flex;
 	align-items: center;
 	border-bottom: 1px solid var(--cu-border);
-	background: linear-gradient(135deg,#5500cc0a 0%,#1e3a5f 150%);
+	background: linear-gradient(135deg,#5500cc0a 0%,#1e3a5f 150%);}
 
 .cu-source-header-row .cu-source-header {
 	flex: 1;
