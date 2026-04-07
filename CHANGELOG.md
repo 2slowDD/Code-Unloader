@@ -5,6 +5,14 @@ All notable changes to Code Unloader will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-04-07
+
+### Fixed
+
+* DB migration now runs automatically on plugin update — schema upgrades no longer require manual deactivation/reactivation
+* `uniq_rule` database index updated to include `group_id` — the same rule can now correctly exist in multiple groups at the database level (DB version 1.2)
+* "View Rules" modal now correctly lists rules for disabled groups — previously returned "No rules in this group." due to the disabled-group filter being applied unconditionally in `get_rules_filtered()`
+
 ## [1.4.1] - 2026-03-24
 
 ### Fixed

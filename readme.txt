@@ -4,7 +4,7 @@ Tags: performance, assets, scripts, styles, dequeue
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.4.1
+Stable tag: 1.4.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,11 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 6. Admin screen — Settings tab with kill switch
 
 == Changelog ==
+
+= 1.4.2 =
+* Fixed: DB migration now runs automatically on plugin update — schema upgrades no longer require manual deactivation/reactivation
+* Fixed: `uniq_rule` database index updated to include `group_id` — the same rule can now correctly exist in multiple groups at the database level (DB version 1.2)
+* Fixed: "View Rules" modal now correctly lists rules for disabled groups — previously returned "No rules in this group." due to the disabled-group filter being applied unconditionally
 
 = 1.4.1 =
 * Fixed: Cloudflare cache integration corrected — cloudflare_purge_by_url and cloudflare_purge_everything are filters, not actions; both replaced with the correct cloudflare_purge_everything_actions filter mechanism

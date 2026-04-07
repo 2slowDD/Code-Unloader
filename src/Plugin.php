@@ -10,6 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Plugin {
 
 	public function boot(): void {
+		Core\Installer::maybe_upgrade();
+
 		// Core engine — always runs on frontend
 		if ( ! is_admin() ) {
 			( new Core\DequeueEngine() )->init();

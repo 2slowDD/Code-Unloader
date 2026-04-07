@@ -236,8 +236,11 @@ class RuleRepository {
 			}
 		}
 
-		// Always hide rules whose group is disabled — they are suspended, not deleted.
-		$conditions[] = '(g.enabled = 1 OR r.group_id IS NULL)';
+		// Hide rules whose group is disabled in global/ungrouped views.
+		// When browsing a specific group, always show all its rules regardless of enabled state.
+		if ( ! isset( $filters['group_id'] ) || (int) $filters['group_id'] <= 0 ) {
+			$conditions[] = '(g.enabled = 1 OR r.group_id IS NULL)';
+		}
 
 		// Each element in $conditions is already fully prepared — safe to join.
 		$where_clause = empty( $conditions ) ? '1=1' : implode( ' AND ', $conditions );
