@@ -74,11 +74,10 @@ class RuleRepository {
 		$cond_type_clause  = null === $condition_type  ? 'condition_type IS NULL'  : $wpdb->prepare( 'condition_type = %s', $condition_type );
 		$cond_value_clause = null === $condition_value ? 'condition_value IS NULL' : $wpdb->prepare( 'condition_value = %s', $condition_value );
 		$group_clause      = null === $group_id        ? 'group_id IS NULL'        : $wpdb->prepare( 'group_id = %d', $group_id );
-		$exclude_clause    = $exclude_id > 0           ? $wpdb->prepare( 'AND id != %d', $exclude_id ) : ''; // 0 = no exclusion (default)
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_row( $wpdb->prepare(
-			"SELECT * FROM {$wpdb->prefix}cu_rules
+		// Build query and args dynamically so $exclude_id is passed as a placeholder
+		// rather than interpolated — avoids PluginCheck.Security.DirectDB warnings.
+		$sql  = "SELECT * FROM {$wpdb->prefix}cu_rules
 			 WHERE url_pattern      = %s
 			   AND match_type       = %s
 			   AND asset_handle     = %s
@@ -87,16 +86,25 @@ class RuleRepository {
 			   AND condition_invert = %d
 			   AND {$cond_type_clause}
 			   AND {$cond_value_clause}
-			   AND {$group_clause}
-			   {$exclude_clause}
-			 LIMIT 1",
+			   AND {$group_clause}";
+		$args = [
 			$data['url_pattern'],
 			$data['match_type'],
 			$data['asset_handle'],
 			$data['asset_type'],
 			$device_type,
-			$condition_invert
-		) ) ?: null;
+			$condition_invert,
+		];
+
+		if ( $exclude_id > 0 ) { // 0 = no exclusion (default)
+			$sql   .= ' AND id != %d';
+			$args[] = $exclude_id;
+		}
+
+		$sql .= ' LIMIT 1';
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_row( $wpdb->prepare( $sql, ...$args ) ) ?: null;
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
