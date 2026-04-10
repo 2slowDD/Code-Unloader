@@ -1,0 +1,177 @@
+/* Code Unloader — Admin Screen Styles */
+
+.cu-admin-wrap { max-width: 1340px; }
+
+/* Two-column layout: main content + sidebar */
+.cu-admin-body {
+	display: flex;
+	align-items: flex-start;
+	gap: 24px;
+}
+.cu-tab-content {
+	flex: 1;
+	min-width: 0;
+	padding-top: 16px;
+}
+
+/* Sidebar */
+.cu-admin-sidebar {
+	flex-shrink: 0;
+	width: 220px;
+	padding-top: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+.cu-sidebar-box {
+	background: #fffef5;
+	border: 1px solid #e2e1b8;
+	border-radius: 8px;
+	padding: 18px 16px;
+}
+.cu-sidebar-heading {
+	margin: 0 0 8px;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+}
+.cu-sidebar-text {
+	margin: 0 0 14px;
+	font-size: 13px;
+	color: #444;
+	line-height: 1.5;
+}
+.cu-sidebar-btn {
+	display: block;
+	text-align: center;
+	background: #2271b1 !important;
+	border-color: #2271b1 !important;
+	color: #fff !important;
+	text-decoration: none;
+}
+.cu-sidebar-btn:hover {
+	background: #135e96 !important;
+	border-color: #135e96 !important;
+	color: #fff !important;
+}
+.cu-sidebar-box--cta .cu-sidebar-btn {
+	display: inline-block;
+	width: auto;
+}
+.cu-sidebar-box--cta {
+	border-color: #c3d9b8;
+	background: #f0f7eb;
+	text-align: center;
+}
+.cu-sidebar-sa-link {
+	display: block;
+	text-align: center;
+	margin: 10px 0 14px;
+}
+.cu-sidebar-sa-icon {
+	width: 100px;
+	height: 100px;
+	border-radius: 16px;
+	display: inline-block;
+	background: transparent;
+}
+
+/* Plugin header */
+.cu-header {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 4px;
+	padding: 16px 0 12px;
+}
+.cu-header-icon {
+	width: 56px;
+	height: 56px;
+	border-radius: 10px;
+	flex-shrink: 0;
+}
+.cu-header-text {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
+.cu-header-title {
+	margin: 0;
+	padding: 0;
+	font-size: 23px;
+	font-weight: 600;
+	line-height: 1.3;
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+.cu-header-version {
+	font-size: 13px;
+	font-weight: 400;
+	color: #666;
+	letter-spacing: .02em;
+}
+.cu-header-subtitle {
+	margin: 2px 0 0;
+	font-size: 13px;
+	color: #666;
+	line-height: 1.4;
+}
+.cu-header-subtitle a {
+	color: #2271b1;
+	text-decoration: none;
+}
+.cu-header-subtitle a:hover {
+	color: #135e96;
+	text-decoration: underline;
+}
+
+.cu-summary-bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 0;
+	font-size: 13px;
+	margin-bottom: 12px;
+	flex-wrap: wrap;
+}
+
+.cu-rules-empty-hint {
+	padding: 14px 18px;
+	margin: 0 0 18px;
+	font-size: 13px;
+	color: #555;
+	background: #f6f7f7;
+	border-left: 4px solid #c3c4c7;
+	border-radius: 0 3px 3px 0;
+}
+
+.cu-pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; line-height: 1.6; }
+.cu-pill-grey   { background: #e0e0e0; color: #333; }
+.cu-pill-blue   { background: #b3d4fc; color: #0a3a6e; }
+.cu-pill-purple { background: #d9c3ff; color: #4a1e99; }
+.cu-pill-red    { background: #fcc; color: #900; }
+.cu-pill-teal   { background: #c3f0ea; color: #0a4a3e; }
+
+.cu-kill-pill   { background: #f00; color: #fff; padding: 3px 10px; border-radius: 4px; font-weight: 700; }
+.cu-active-pill { background: #c6e5bb; color: #1a5c00; padding: 3px 10px; border-radius: 4px; font-weight: 700; }
+
+.cu-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+.cu-badge-type-js  { background: #fef3c7; color: #92400e; }
+.cu-badge-type-css { background: #cfe2ff; color: #084298; }
+
+.cu-rule-label { font-size: 11px; color: #777; }
+
+
+.cu-groups-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.cu-group-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+.cu-group-card-disabled { opacity: .6; border-color: #f0a500; background: #fffbf0; }
+.cu-group-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.cu-group-rule-count { font-size: 11px; background: #eee; padding: 2px 7px; border-radius: 10px; }
+.cu-group-desc { font-size: 12px; color: #666; margin: 0 0 12px; }
+.cu-group-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.cu-snapshot { font-size: 11px; background: #f5f5f5; padding: 8px; max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+
+.cu-btn-danger { color: #c00 !important; border-color: #c00 !important; }
+.cu-btn-danger:hover { background: #c00 !important; color: #fff !important; }
