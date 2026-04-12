@@ -175,3 +175,5 @@
 
 .cu-btn-danger { color: #c00 !important; border-color: #c00 !important; }
 .cu-btn-danger:hover { background: #c00 !important; color: #fff !important; }
+
+.notice.notice-error { background: #d636383d; }
