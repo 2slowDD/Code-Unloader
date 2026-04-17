@@ -42,12 +42,7 @@ class DequeueEngine {
 				continue;
 			}
 
-			// 1. Group enabled check — cast to int because wpdb returns all columns as strings.
-			if ( isset( $rule->group_id ) && null !== $rule->group_id && isset( $rule->group_enabled ) && ! (int) $rule->group_enabled ) {
-				continue;
-			}
-
-			// 2. URL match
+			// 1. URL match
 			if ( ! PatternMatcher::match( $rule, $current_url ) ) {
 				continue;
 			}

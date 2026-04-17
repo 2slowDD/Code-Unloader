@@ -378,7 +378,7 @@ class AdminScreen {
 	// Rules Tab
 	// -------------------------------------------------------------------------
 	private function render_rules_tab(): void {
-		// Summary bar — count only active rules (disabled-group rules are suspended, not shown).
+		// Summary bar — count all active rules in cu_rules.
 		global $wpdb;
 		$count = wp_cache_get( 'cdunloader_rules_count' );
 		if ( false === $count ) {
@@ -386,8 +386,6 @@ class AdminScreen {
 				"SELECT COUNT(*) FROM (
 				    SELECT 1
 				    FROM {$wpdb->prefix}cu_rules r
-				    LEFT JOIN {$wpdb->prefix}cu_groups g ON g.id = r.group_id
-				    WHERE (g.enabled = 1 OR r.group_id IS NULL)
 				    GROUP BY r.url_pattern, r.match_type, r.asset_handle, r.asset_type,
 				             r.device_type, r.condition_type, r.condition_value, r.condition_invert
 				) AS unique_rules"
