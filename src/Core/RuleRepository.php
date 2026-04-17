@@ -141,6 +141,23 @@ class RuleRepository {
 		self::$rules_cache = null; // invalidate cache
 		$new_id = (int) $wpdb->insert_id;
 
+		// If the new rule belongs to a group, ensure a cu_group_items snapshot exists
+		// and link the rule back to it. This keeps group membership alive independently
+		// of active rule lifecycle.
+		if ( isset( $data['group_id'] ) && null !== $data['group_id'] && '' !== $data['group_id'] ) {
+			$group_id = (int) $data['group_id'];
+			$item_id  = self::create_group_item( $group_id, $data );
+			if ( ! is_wp_error( $item_id ) && $item_id > 0 ) {
+				$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+					"{$wpdb->prefix}cu_rules",
+					[ 'group_item_id' => $item_id ],
+					[ 'id'            => $new_id ],
+					[ '%d' ],
+					[ '%d' ]
+				);
+			}
+		}
+
 		// Audit log
 		self::log_action( 'create', get_current_user_id(), $new_id, self::get_rule( $new_id ) );
 
