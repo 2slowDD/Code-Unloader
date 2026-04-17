@@ -219,6 +219,86 @@ class RuleRepository {
 	}
 
 	/**
+	 * Remove active rules that match the given asset on the specified scope.
+	 *
+	 * Scope 'page'   — removes only rules whose URL pattern matches $page_url for this asset.
+	 * Scope 'global' — removes all active rules for this asset regardless of URL.
+	 *
+	 * Group item snapshots in cu_group_items are never touched by this method.
+	 *
+	 * @param string $handle   Asset handle.
+	 * @param string $type     Asset type (js, css, inline_js, inline_css).
+	 * @param string $device   Device type filter (all, mobile, desktop).
+	 * @param string $scope    'page' or 'global'.
+	 * @param string $page_url Current page URL (used only when scope = 'page').
+	 * @return int Number of rules deleted.
+	 */
+	public static function delete_active_rules_by_scope(
+		string $handle,
+		string $type,
+		string $device,
+		string $scope,
+		string $page_url
+	): int {
+		global $wpdb;
+
+		if ( 'global' === $scope ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$rows_to_delete = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id, url_pattern, match_type FROM {$wpdb->prefix}cu_rules
+					 WHERE asset_handle = %s AND asset_type = %s AND device_type = %s",
+					$handle, $type, $device
+				)
+			) ?: [];
+		} else {
+			// 'page' scope: fetch candidates and filter by URL matching.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$candidates = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id, url_pattern, match_type FROM {$wpdb->prefix}cu_rules
+					 WHERE asset_handle = %s AND asset_type = %s AND device_type = %s",
+					$handle, $type, $device
+				)
+			) ?: [];
+
+			$rows_to_delete = array_filter(
+				$candidates,
+				static function ( $rule ) use ( $page_url ): bool {
+					return PatternMatcher::match( $page_url, $rule->url_pattern, $rule->match_type );
+				}
+			);
+		}
+
+		if ( empty( $rows_to_delete ) ) {
+			return 0;
+		}
+
+		$ids     = array_map( static fn( $r ) => (int) $r->id, $rows_to_delete );
+		$deleted = 0;
+		$user_id = get_current_user_id();
+
+		foreach ( $ids as $id ) {
+			$rule = self::get_rule( $id );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$result = (bool) $wpdb->query(
+				$wpdb->prepare( "DELETE FROM {$wpdb->prefix}cu_rules WHERE id = %d", $id )
+			);
+			if ( $result ) {
+				++$deleted;
+				self::log_action( 'delete', $user_id, $id, $rule );
+				if ( $rule ) {
+					CachePurger::purge_for_rule( $rule->url_pattern, $rule->match_type );
+				}
+			}
+		}
+
+		self::$rules_cache = null;
+		self::invalidate_caches();
+		return $deleted;
+	}
+
+	/**
 	 * Return handles stored in rules that are no longer registered in WordPress.
 	 * Only meaningful on the FRONTEND after wp_enqueue_scripts has fired.
 	 * On admin pages $wp_scripts->registered contains only admin scripts —
