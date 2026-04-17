@@ -502,6 +502,180 @@ class RuleRepository {
 	}
 
 	// -------------------------------------------------------------------------
+	// Group Items
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Get all saved snapshots for a group.
+	 *
+	 * @param int $group_id
+	 * @return object[]
+	 */
+	public static function get_group_items( int $group_id ): array {
+		$cache_key = "cdunloader_group_items_{$group_id}";
+		$cached    = wp_cache_get( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+		global $wpdb;
+		$results = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}cu_group_items WHERE group_id = %d ORDER BY created_at DESC",
+				$group_id
+			)
+		) ?: [];
+		wp_cache_set( $cache_key, $results );
+		return $results;
+	}
+
+	/**
+	 * Get a single group item snapshot by ID.
+	 *
+	 * @param int $id
+	 * @return object|null
+	 */
+	public static function get_group_item( int $id ): ?object {
+		$cache_key = "cdunloader_group_item_{$id}";
+		$cached    = wp_cache_get( $cache_key );
+		if ( false !== $cached ) {
+			return $cached ?: null;
+		}
+		global $wpdb;
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}cu_group_items WHERE id = %d",
+				$id
+			)
+		) ?: null;
+		wp_cache_set( $cache_key, $row ?: 0 );
+		return $row;
+	}
+
+	/**
+	 * Find an existing snapshot in a group matching the given rule fields.
+	 * Uses the same NULL-safe matching as the migration to avoid false positives.
+	 *
+	 * @param int   $group_id
+	 * @param array $snapshot  Keys: url_pattern, match_type, asset_handle, asset_type,
+	 *                                device_type, condition_type, condition_value, condition_invert
+	 * @return object|null
+	 */
+	public static function find_duplicate_group_item( int $group_id, array $snapshot ): ?object {
+		global $wpdb;
+		$condition_type  = $snapshot['condition_type']  ?? null;
+		$condition_value = $snapshot['condition_value'] ?? null;
+
+		if ( null === $condition_type && null === $condition_value ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			return $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}cu_group_items
+					 WHERE group_id         = %d
+					   AND url_pattern      = %s
+					   AND match_type       = %s
+					   AND asset_handle     = %s
+					   AND asset_type       = %s
+					   AND device_type      = %s
+					   AND condition_invert = %d
+					   AND condition_type   IS NULL
+					   AND condition_value  IS NULL",
+					$group_id,
+					$snapshot['url_pattern'],
+					$snapshot['match_type'],
+					$snapshot['asset_handle'],
+					$snapshot['asset_type'],
+					$snapshot['device_type'] ?? 'all',
+					(int) ( $snapshot['condition_invert'] ?? 0 )
+				)
+			) ?: null;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}cu_group_items
+				 WHERE group_id         = %d
+				   AND url_pattern      = %s
+				   AND match_type       = %s
+				   AND asset_handle     = %s
+				   AND asset_type       = %s
+				   AND device_type      = %s
+				   AND condition_invert = %d
+				   AND IFNULL(condition_type, '')  = %s
+				   AND IFNULL(condition_value, '') = %s",
+				$group_id,
+				$snapshot['url_pattern'],
+				$snapshot['match_type'],
+				$snapshot['asset_handle'],
+				$snapshot['asset_type'],
+				$snapshot['device_type'] ?? 'all',
+				(int) ( $snapshot['condition_invert'] ?? 0 ),
+				(string) ( $condition_type  ?? '' ),
+				(string) ( $condition_value ?? '' )
+			)
+		) ?: null;
+	}
+
+	/**
+	 * Create a new group item snapshot. Returns the new ID, or existing ID if duplicate,
+	 * or WP_Error on DB failure.
+	 *
+	 * @param int   $group_id
+	 * @param array $snapshot  Same shape as find_duplicate_group_item $snapshot param.
+	 * @return int|\WP_Error
+	 */
+	public static function create_group_item( int $group_id, array $snapshot ): int|\WP_Error {
+		$existing = self::find_duplicate_group_item( $group_id, $snapshot );
+		if ( null !== $existing ) {
+			return (int) $existing->id;
+		}
+		global $wpdb;
+		$inserted = $wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			"{$wpdb->prefix}cu_group_items",
+			[
+				'group_id'         => $group_id,
+				'url_pattern'      => $snapshot['url_pattern'],
+				'match_type'       => $snapshot['match_type'],
+				'asset_handle'     => $snapshot['asset_handle'],
+				'asset_type'       => $snapshot['asset_type'],
+				'source_label'     => $snapshot['source_label']     ?? '',
+				'device_type'      => $snapshot['device_type']      ?? 'all',
+				'condition_type'   => $snapshot['condition_type']   ?: null,
+				'condition_value'  => $snapshot['condition_value']  ?: null,
+				'condition_invert' => (int) ( $snapshot['condition_invert'] ?? 0 ),
+				'label'            => $snapshot['label']            ?: null,
+				'created_by'       => get_current_user_id()         ?: null,
+				'created_at'       => current_time( 'mysql', true ),
+			],
+			[ '%d','%s','%s','%s','%s','%s','%s','%s','%s','%d','%s','%d','%s' ]
+		);
+		if ( false === $inserted ) {
+			return new \WP_Error( 'db_error', $wpdb->last_error );
+		}
+		$new_id = (int) $wpdb->insert_id;
+		wp_cache_delete( "cdunloader_group_items_{$group_id}" );
+		return $new_id;
+	}
+
+	/**
+	 * Delete all snapshot items for a group. Returns count of deleted rows.
+	 *
+	 * @param int $group_id
+	 * @return int
+	 */
+	public static function delete_group_items( int $group_id ): int {
+		global $wpdb;
+		$deleted = (int) $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->prefix}cu_group_items WHERE group_id = %d",
+				$group_id
+			)
+		);
+		wp_cache_delete( "cdunloader_group_items_{$group_id}" );
+		return $deleted;
+	}
+
+	// -------------------------------------------------------------------------
 	// Audit log
 	// -------------------------------------------------------------------------
 
