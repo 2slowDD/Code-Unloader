@@ -1125,3 +1125,33 @@ a.cu-icon-btn--link {
 	max-height: 40px;
 	line-height: 1.4;
 }
+
+/* Enable-scope chooser — inline split buttons on disabled asset row */
+.cu-enable-chooser {
+	display: inline-flex;
+	gap: 4px;
+	margin-left: 8px;
+	vertical-align: middle;
+}
+
+.cu-enable-btn {
+	padding: 2px 8px;
+	font-size: 11px;
+	line-height: 1.5;
+	border: 1px solid #8c8f94;
+	border-radius: 3px;
+	background: #fff;
+	color: #3c434a;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.cu-enable-btn:hover {
+	background: #f0f0f1;
+	border-color: #646970;
+}
+
+.cu-enable-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
