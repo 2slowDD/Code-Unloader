@@ -110,84 +110,123 @@ class Installer {
 
 			// Data migration: for each active rule that belongs to a group, create (or reuse)
 			// a cu_group_items snapshot and backfill group_item_id on the rule row.
-			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-			$grouped_rules = $wpdb->get_results(
-				"SELECT id, group_id, url_pattern, match_type, asset_handle, asset_type,
-				        source_label, device_type, condition_type, condition_value, condition_invert,
-				        label, created_by, created_at
-				 FROM {$wpdb->prefix}cu_rules
-				 WHERE group_id IS NOT NULL
-				   AND group_item_id IS NULL"
-			);
-			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-
-			foreach ( $grouped_rules as $rule ) {
-				// Try to find an existing snapshot for this group+rule combination.
-				// The UNIQUE KEY on cu_group_items covers the same 9 fields used here.
+			// Processed in batches of 200 to avoid loading unbounded result sets into memory.
+			$batch_size = 200;
+			$offset     = 0;
+			do {
 				// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-				$existing_item = $wpdb->get_row(
+				$grouped_rules = $wpdb->get_results(
 					$wpdb->prepare(
-						"SELECT id FROM {$wpdb->prefix}cu_group_items
-						 WHERE group_id          = %d
-						   AND url_pattern       = %s
-						   AND match_type        = %s
-						   AND asset_handle      = %s
-						   AND asset_type        = %s
-						   AND device_type       = %s
-						   AND condition_invert  = %d
-						   AND IFNULL(condition_type, '')  = %s
-						   AND IFNULL(condition_value, '') = %s",
-						(int) $rule->group_id,
-						$rule->url_pattern,
-						$rule->match_type,
-						$rule->asset_handle,
-						$rule->asset_type,
-						$rule->device_type,
-						(int) $rule->condition_invert,
-						(string) ( $rule->condition_type  ?? '' ),
-						(string) ( $rule->condition_value ?? '' )
+						"SELECT id, group_id, url_pattern, match_type, asset_handle, asset_type,
+						        source_label, device_type, condition_type, condition_value, condition_invert,
+						        label, created_by, created_at
+						 FROM {$wpdb->prefix}cu_rules
+						 WHERE group_id IS NOT NULL
+						   AND group_item_id IS NULL
+						 LIMIT %d OFFSET %d",
+						$batch_size,
+						$offset
 					)
 				);
 				// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
-				if ( null !== $existing_item ) {
-					$item_id = (int) $existing_item->id;
-				} else {
-					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-					$wpdb->insert(
-						"{$wpdb->prefix}cu_group_items",
-						[
-							'group_id'         => (int) $rule->group_id,
-							'url_pattern'      => $rule->url_pattern,
-							'match_type'       => $rule->match_type,
-							'asset_handle'     => $rule->asset_handle,
-							'asset_type'       => $rule->asset_type,
-							'source_label'     => $rule->source_label     ?? '',
-							'device_type'      => $rule->device_type      ?? 'all',
-							'condition_type'   => $rule->condition_type   ?: null,
-							'condition_value'  => $rule->condition_value  ?: null,
-							'condition_invert' => (int) ( $rule->condition_invert ?? 0 ),
-							'label'            => $rule->label            ?: null,
-							'created_by'       => $rule->created_by       ? (int) $rule->created_by : null,
-							'created_at'       => $rule->created_at,
-						],
-						[ '%d','%s','%s','%s','%s','%s','%s','%s','%s','%d','%s','%d','%s' ]
-					);
-					$item_id = (int) $wpdb->insert_id;
+				foreach ( $grouped_rules as $rule ) {
+					// Try to find an existing snapshot for this group+rule combination.
+					// The UNIQUE KEY on cu_group_items covers the same 9 fields used here.
+					if ( null === $rule->condition_type && null === $rule->condition_value ) {
+						// Both conditions are NULL — match rows with NULL condition fields.
+						// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+						$existing_item = $wpdb->get_row(
+							$wpdb->prepare(
+								"SELECT id FROM {$wpdb->prefix}cu_group_items
+								 WHERE group_id         = %d
+								   AND url_pattern      = %s
+								   AND match_type       = %s
+								   AND asset_handle     = %s
+								   AND asset_type       = %s
+								   AND device_type      = %s
+								   AND condition_invert = %d
+								   AND condition_type   IS NULL
+								   AND condition_value  IS NULL",
+								(int) $rule->group_id,
+								$rule->url_pattern,
+								$rule->match_type,
+								$rule->asset_handle,
+								$rule->asset_type,
+								$rule->device_type,
+								(int) $rule->condition_invert
+							)
+						);
+						// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+					} else {
+						// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+						$existing_item = $wpdb->get_row(
+							$wpdb->prepare(
+								"SELECT id FROM {$wpdb->prefix}cu_group_items
+								 WHERE group_id         = %d
+								   AND url_pattern      = %s
+								   AND match_type       = %s
+								   AND asset_handle     = %s
+								   AND asset_type       = %s
+								   AND device_type      = %s
+								   AND condition_invert = %d
+								   AND IFNULL(condition_type, '')  = %s
+								   AND IFNULL(condition_value, '') = %s",
+								(int) $rule->group_id,
+								$rule->url_pattern,
+								$rule->match_type,
+								$rule->asset_handle,
+								$rule->asset_type,
+								$rule->device_type,
+								(int) $rule->condition_invert,
+								(string) ( $rule->condition_type  ?? '' ),
+								(string) ( $rule->condition_value ?? '' )
+							)
+						);
+						// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+					}
+
+					if ( null !== $existing_item ) {
+						$item_id = (int) $existing_item->id;
+					} else {
+						// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+						$wpdb->insert(
+							"{$wpdb->prefix}cu_group_items",
+							[
+								'group_id'         => (int) $rule->group_id,
+								'url_pattern'      => $rule->url_pattern,
+								'match_type'       => $rule->match_type,
+								'asset_handle'     => $rule->asset_handle,
+								'asset_type'       => $rule->asset_type,
+								'source_label'     => $rule->source_label     ?? '',
+								'device_type'      => $rule->device_type      ?? 'all',
+								'condition_type'   => $rule->condition_type   ?: null,
+								'condition_value'  => $rule->condition_value  ?: null,
+								'condition_invert' => (int) ( $rule->condition_invert ?? 0 ),
+								'label'            => $rule->label            ?: null,
+								'created_by'       => $rule->created_by       ? (int) $rule->created_by : null,
+								'created_at'       => $rule->created_at,
+							],
+							[ '%d','%s','%s','%s','%s','%s','%s','%s','%s','%d','%s','%d','%s' ]
+						);
+						$item_id = (int) $wpdb->insert_id;
+					}
+
+					if ( $item_id > 0 ) {
+						// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+						$wpdb->update(
+							"{$wpdb->prefix}cu_rules",
+							[ 'group_item_id' => $item_id ],
+							[ 'id'            => (int) $rule->id ],
+							[ '%d' ],
+							[ '%d' ]
+						);
+					}
 				}
 
-				if ( $item_id > 0 ) {
-					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-					$wpdb->update(
-						"{$wpdb->prefix}cu_rules",
-						[ 'group_item_id' => $item_id ],
-						[ 'id'            => (int) $rule->id ],
-						[ '%d' ],
-						[ '%d' ]
-					);
-				}
-			}
-			unset( $grouped_rules, $rule, $existing_item, $item_id );
+				$offset += $batch_size;
+			} while ( count( $grouped_rules ) === $batch_size );
+			unset( $grouped_rules, $rule, $existing_item, $item_id, $batch_size, $offset );
 		}
 
 		self::create_tables();
