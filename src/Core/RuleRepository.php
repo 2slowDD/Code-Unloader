@@ -565,8 +565,15 @@ class RuleRepository {
 		self::invalidate_caches();
 
 		if ( $result !== false && isset( $data['enabled'] ) ) {
+			if ( ! empty( $data['enabled'] ) ) {
+				self::activate_group_items( $id );
+				$action = 'group_activate';
+			} else {
+				self::deactivate_group_items( $id );
+				$action = 'group_deactivate';
+			}
 			$group = self::get_group( $id );
-			self::log_action( 'group_toggle', get_current_user_id(), null, $group );
+			self::log_action( $action, get_current_user_id(), null, $group );
 		}
 
 		return $result !== false;
@@ -574,8 +581,8 @@ class RuleRepository {
 
 	public static function delete_group( int $id ): bool {
 		global $wpdb;
-		// Rules become ungrouped
-		$wpdb->update( "{$wpdb->prefix}cu_rules", [ 'group_id' => null ], [ 'group_id' => $id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		self::deactivate_group_items( $id );
+		self::delete_group_items( $id );
 		$result = (bool) $wpdb->delete( "{$wpdb->prefix}cu_groups", [ 'id' => $id ], [ '%d' ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		self::invalidate_caches();
 		return $result;

@@ -227,6 +227,13 @@ class Installer {
 				$offset += $batch_size;
 			} while ( count( $grouped_rules ) === $batch_size );
 			unset( $grouped_rules, $rule, $existing_item, $item_id, $batch_size, $offset );
+
+			// Expand cu_log action ENUM to include group_activate and group_deactivate.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
+			$wpdb->query(
+				"ALTER TABLE {$wpdb->prefix}cu_log
+				 MODIFY COLUMN action ENUM('create','delete','group_toggle','group_activate','group_deactivate','killswitch') NOT NULL"
+			);
 		}
 
 		self::create_tables();
