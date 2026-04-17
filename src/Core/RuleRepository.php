@@ -755,6 +755,88 @@ class RuleRepository {
 		return $deleted;
 	}
 
+	/**
+	 * Materialise active rules from a group's saved snapshots.
+	 * Skips snapshots that already have an identical active rule in cu_rules.
+	 * Sets group_item_id on each created active rule.
+	 *
+	 * @param int $group_id
+	 * @return int Number of active rules created.
+	 */
+	public static function activate_group_items( int $group_id ): int {
+		$items   = self::get_group_items( $group_id );
+		$created = 0;
+
+		foreach ( $items as $item ) {
+			$data = [
+				'url_pattern'      => $item->url_pattern,
+				'match_type'       => $item->match_type,
+				'asset_handle'     => $item->asset_handle,
+				'asset_type'       => $item->asset_type,
+				'source_label'     => $item->source_label     ?? '',
+				'device_type'      => $item->device_type      ?? 'all',
+				'condition_type'   => $item->condition_type   ?: null,
+				'condition_value'  => $item->condition_value  ?: null,
+				'condition_invert' => (int) ( $item->condition_invert ?? 0 ),
+				'group_id'         => $group_id,
+				'group_item_id'    => (int) $item->id,
+				'label'            => $item->label            ?: null,
+			];
+
+			// find_duplicate checks cu_rules for an identical row in the same group scope.
+			// If one exists, skip — don't create a duplicate active rule.
+			if ( null !== self::find_duplicate( $data ) ) {
+				continue;
+			}
+
+			$result = self::create_rule( $data );
+			if ( ! is_wp_error( $result ) ) {
+				++$created;
+			}
+		}
+
+		return $created;
+	}
+
+	/**
+	 * Remove active rules in cu_rules that were created from this group's snapshots.
+	 * Identified by group_item_id pointing to a snapshot in this group.
+	 * Does NOT delete cu_group_items rows.
+	 *
+	 * @param int $group_id
+	 * @return int Number of active rules deleted.
+	 */
+	public static function deactivate_group_items( int $group_id ): int {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT r.id FROM {$wpdb->prefix}cu_rules r
+				 INNER JOIN {$wpdb->prefix}cu_group_items gi ON gi.id = r.group_item_id
+				 WHERE gi.group_id = %d",
+				$group_id
+			)
+		) ?: [];
+
+		if ( empty( $ids ) ) {
+			// Fallback: also remove rules still linked only via legacy group_id.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT id FROM {$wpdb->prefix}cu_rules WHERE group_id = %d AND group_item_id IS NULL",
+					$group_id
+				)
+			) ?: [];
+		}
+
+		if ( empty( $ids ) ) {
+			return 0;
+		}
+
+		return self::delete_rules( array_map( 'intval', $ids ) );
+	}
+
 	// -------------------------------------------------------------------------
 	// Audit log
 	// -------------------------------------------------------------------------
