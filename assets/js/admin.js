@@ -372,29 +372,22 @@
 		if (modal) modal.style.display = 'none';
 	}
 
-	// State for current modal pagination
-	var vrmState = { groupId: null, groupName: '', page: 1, totalPages: 1, perPage: 50 };
+	// State for current modal
+	var vrmState = { groupId: null, groupName: '' };
 
-	async function loadViewRulesPage(page) {
+	async function loadViewRulesPage() {
 		const body = document.getElementById('cu-vrm-body');
 		const pagination = document.getElementById('cu-vrm-pagination');
-		const pageInfo = document.getElementById('cu-vrm-page-info');
-		const prevBtn = document.getElementById('cu-vrm-prev');
-		const nextBtn = document.getElementById('cu-vrm-next');
 
 		body.innerHTML = '<p style="color:#555;font-size:13px;">Loading…</p>';
+		// Snapshot endpoint returns all items — no pagination needed
+		pagination.style.display = 'none';
 
 		try {
-			const data = await api('GET', '/rules?group_id=' + encodeURIComponent(vrmState.groupId) +
-				'&per_page=' + vrmState.perPage + '&page=' + page);
-			const rules = data.rows || [];
-			const total = data.total || rules.length;
-			vrmState.page = page;
-			vrmState.totalPages = Math.max(1, Math.ceil(total / vrmState.perPage));
+			const rules = await api('GET', '/groups/' + vrmState.groupId + '/items');
 
 			if (!rules.length) {
 				body.innerHTML = '<p style="color:#555;font-size:13px;">No rules in this group.</p>';
-				pagination.style.display = 'none';
 				return;
 			}
 
@@ -418,19 +411,8 @@
 
 			html += '</tbody></table>';
 			body.innerHTML = html;
-
-			// Pagination controls
-			if (vrmState.totalPages > 1) {
-				pagination.style.display = 'flex';
-				pageInfo.textContent = 'Page ' + vrmState.page + ' of ' + vrmState.totalPages + ' (' + total + ' rules)';
-				prevBtn.disabled = (vrmState.page <= 1);
-				nextBtn.disabled = (vrmState.page >= vrmState.totalPages);
-			} else {
-				pagination.style.display = 'none';
-			}
 		} catch (err) {
 			body.innerHTML = '<p style="color:#b00020;font-size:13px;">Error: ' + escHtml(err.message) + '</p>';
-			pagination.style.display = 'none';
 		}
 	}
 
@@ -444,17 +426,7 @@
 		title.textContent = groupName;
 		modal.style.display = 'flex';
 
-		// Wire pagination buttons (clone to clear old listeners)
-		const prevBtn = document.getElementById('cu-vrm-prev');
-		const nextBtn = document.getElementById('cu-vrm-next');
-		const newPrev = prevBtn.cloneNode(true);
-		const newNext = nextBtn.cloneNode(true);
-		prevBtn.parentNode.replaceChild(newPrev, prevBtn);
-		nextBtn.parentNode.replaceChild(newNext, nextBtn);
-		newPrev.addEventListener('click', function() { if (vrmState.page > 1) loadViewRulesPage(vrmState.page - 1); });
-		newNext.addEventListener('click', function() { if (vrmState.page < vrmState.totalPages) loadViewRulesPage(vrmState.page + 1); });
-
-		await loadViewRulesPage(1);
+		await loadViewRulesPage();
 	}
 
 	// View Rules button click

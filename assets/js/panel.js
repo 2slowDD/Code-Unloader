@@ -155,6 +155,66 @@ var cuClosePanel = function () {
 	}
 
 	/* -----------------------------------------------------------------------
+	   showEnableChooser — inline split buttons for scoped re-enable
+	   ----------------------------------------------------------------------- */
+	function showEnableChooser(handle, type, rowEl) {
+		// Remove any existing chooser on other rows first
+		document.querySelectorAll('.cu-enable-chooser').forEach(function(el) { el.remove(); });
+
+		var chooser = document.createElement('div');
+		chooser.className = 'cu-enable-chooser';
+		chooser.setAttribute('aria-label', 'Choose enable scope for ' + handle);
+
+		var btnPage   = document.createElement('button');
+		btnPage.type  = 'button';
+		btnPage.className = 'cu-enable-btn';
+		btnPage.textContent = 'On this page';
+		btnPage.setAttribute('aria-label', 'Enable ' + handle + ' on this page only');
+
+		var btnGlobal = document.createElement('button');
+		btnGlobal.type = 'button';
+		btnGlobal.className = 'cu-enable-btn';
+		btnGlobal.textContent = 'Globally';
+		btnGlobal.setAttribute('aria-label', 'Enable ' + handle + ' on all pages');
+
+		function doEnable(scope) {
+			btnPage.disabled   = true;
+			btnGlobal.disabled = true;
+			api('POST', '/rules/enable', {
+				asset_handle: handle,
+				asset_type:   type,
+				device_type:  'all',
+				page_url:     pageUrl,
+				scope:        scope,
+			}).then(function() {
+				delete ruleMap[handle + '|' + type];
+				chooser.remove();
+				_cu.replaceRow(handle, type);
+				_cu.updateStatsBar();
+				notify('Re-enabled: ' + handle, 'success');
+			}).catch(function(e) {
+				btnPage.disabled   = false;
+				btnGlobal.disabled = false;
+				notify('Error: ' + e.message, 'error');
+			});
+		}
+
+		btnPage.addEventListener('click',   function() { doEnable('page'); });
+		btnGlobal.addEventListener('click', function() { doEnable('global'); });
+
+		chooser.appendChild(btnPage);
+		chooser.appendChild(btnGlobal);
+
+		// Insert after the toggle/checkbox on the row
+		var toggle = rowEl.querySelector('input[type="checkbox"]') || rowEl;
+		toggle.parentNode.insertBefore(chooser, toggle.nextSibling);
+
+		// Revert the checkbox to checked=false visually (it was just clicked)
+		var cb = rowEl.querySelector('input[type="checkbox"]');
+		if (cb) cb.checked = false;
+	}
+
+	/* -----------------------------------------------------------------------
 	   _cu — render + logic
 	   ----------------------------------------------------------------------- */
 	var _cu = window._cu = {
@@ -321,7 +381,7 @@ var cuClosePanel = function () {
 						_cu.openDialog(handle, type, source, this);
 					} else {
 						if (ruleId) {
-							_cu.enableAsset(ruleId, handle, type, this);
+							showEnableChooser(handle, type, this.closest('.cu-asset-row') || this.parentNode);
 						} else {
 							this.checked = true;
 						}
@@ -377,9 +437,13 @@ var cuClosePanel = function () {
 			if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
 
 			var promises = groupAssets.map(function (a) {
-				var rule = ruleMap[a.handle + '|' + a.type];
-				if (!rule || !rule.id) return Promise.resolve();
-				return api('DELETE', '/rules/' + rule.id).then(function () {
+				return api('POST', '/rules/enable', {
+					asset_handle: a.handle,
+					asset_type:   a.type,
+					device_type:  'all',
+					page_url:     pageUrl,
+					scope:        'global',
+				}).then(function () {
 					delete ruleMap[a.handle + '|' + a.type];
 				}).catch(function () {});
 			});
@@ -388,25 +452,6 @@ var cuClosePanel = function () {
 				_cu.renderAssets();
 				notify('Re-enabled ' + groupAssets.length + ' assets in ' + label, 'success');
 			});
-		},
-
-		enableAsset: function (ruleId, handle, type, cb) {
-			var toggle = cb.closest('.cu-toggle');
-			if (toggle) toggle.classList.add('cu-toggle--loading');
-			cb.disabled = true;
-
-			api('DELETE', '/rules/' + ruleId)
-				.then(function () {
-					delete ruleMap[handle + '|' + type];
-					_cu.replaceRow(handle, type);
-					notify('Re-enabled: ' + handle, 'success');
-				})
-				.catch(function (e) {
-					cb.checked = false;
-					cb.disabled = false;
-					if (toggle) toggle.classList.remove('cu-toggle--loading');
-					notify('Error: ' + e.message, 'error');
-				});
 		},
 
 		replaceRow: function (handle, type) {
@@ -490,9 +535,13 @@ var cuClosePanel = function () {
 						this.textContent = 'Working…';
 						var all = assets.filter(function (a) { return !!ruleMap[a.handle + '|' + a.type]; });
 						var promises = all.map(function (a) {
-							var rule = ruleMap[a.handle + '|' + a.type];
-							if (!rule || !rule.id) return Promise.resolve();
-							return api('DELETE', '/rules/' + rule.id).then(function () {
+							return api('POST', '/rules/enable', {
+								asset_handle: a.handle,
+								asset_type:   a.type,
+								device_type:  'all',
+								page_url:     pageUrl,
+								scope:        'global',
+							}).then(function () {
 								delete ruleMap[a.handle + '|' + a.type];
 							}).catch(function () {});
 						});

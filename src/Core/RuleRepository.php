@@ -141,6 +141,23 @@ class RuleRepository {
 		self::$rules_cache = null; // invalidate cache
 		$new_id = (int) $wpdb->insert_id;
 
+		// If the new rule belongs to a group, ensure a cu_group_items snapshot exists
+		// and link the rule back to it. This keeps group membership alive independently
+		// of active rule lifecycle.
+		if ( isset( $data['group_id'] ) && null !== $data['group_id'] && '' !== $data['group_id'] ) {
+			$group_id = (int) $data['group_id'];
+			$item_id  = self::create_group_item( $group_id, $data );
+			if ( ! is_wp_error( $item_id ) && $item_id > 0 ) {
+				$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+					"{$wpdb->prefix}cu_rules",
+					[ 'group_item_id' => $item_id ],
+					[ 'id'            => $new_id ],
+					[ '%d' ],
+					[ '%d' ]
+				);
+			}
+		}
+
 		// Audit log
 		self::log_action( 'create', get_current_user_id(), $new_id, self::get_rule( $new_id ) );
 
@@ -213,6 +230,86 @@ class RuleRepository {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$deleted = (int) $wpdb->query( "DELETE FROM {$wpdb->prefix}cu_rules" );
+		self::$rules_cache = null;
+		self::invalidate_caches();
+		return $deleted;
+	}
+
+	/**
+	 * Remove active rules that match the given asset on the specified scope.
+	 *
+	 * Scope 'page'   — removes only rules whose URL pattern matches $page_url for this asset.
+	 * Scope 'global' — removes all active rules for this asset regardless of URL.
+	 *
+	 * Group item snapshots in cu_group_items are never touched by this method.
+	 *
+	 * @param string $handle   Asset handle.
+	 * @param string $type     Asset type (js, css, inline_js, inline_css).
+	 * @param string $device   Device type filter (all, mobile, desktop).
+	 * @param string $scope    'page' or 'global'.
+	 * @param string $page_url Current page URL (used only when scope = 'page').
+	 * @return int Number of rules deleted.
+	 */
+	public static function delete_active_rules_by_scope(
+		string $handle,
+		string $type,
+		string $device,
+		string $scope,
+		string $page_url
+	): int {
+		global $wpdb;
+
+		if ( 'global' === $scope ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$rows_to_delete = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id, url_pattern, match_type FROM {$wpdb->prefix}cu_rules
+					 WHERE asset_handle = %s AND asset_type = %s AND device_type = %s",
+					$handle, $type, $device
+				)
+			) ?: [];
+		} else {
+			// 'page' scope: fetch candidates and filter by URL matching.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$candidates = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT id, url_pattern, match_type FROM {$wpdb->prefix}cu_rules
+					 WHERE asset_handle = %s AND asset_type = %s AND device_type = %s",
+					$handle, $type, $device
+				)
+			) ?: [];
+
+			$rows_to_delete = array_filter(
+				$candidates,
+				static function ( $rule ) use ( $page_url ): bool {
+					return PatternMatcher::match( $page_url, $rule->url_pattern, $rule->match_type );
+				}
+			);
+		}
+
+		if ( empty( $rows_to_delete ) ) {
+			return 0;
+		}
+
+		$ids     = array_map( static fn( $r ) => (int) $r->id, $rows_to_delete );
+		$deleted = 0;
+		$user_id = get_current_user_id();
+
+		foreach ( $ids as $id ) {
+			$rule = self::get_rule( $id );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$result = (bool) $wpdb->query(
+				$wpdb->prepare( "DELETE FROM {$wpdb->prefix}cu_rules WHERE id = %d", $id )
+			);
+			if ( $result ) {
+				++$deleted;
+				self::log_action( 'delete', $user_id, $id, $rule );
+				if ( $rule ) {
+					CachePurger::purge_for_rule( $rule->url_pattern, $rule->match_type );
+				}
+			}
+		}
+
 		self::$rules_cache = null;
 		self::invalidate_caches();
 		return $deleted;
@@ -300,8 +397,7 @@ class RuleRepository {
 					        GROUP_CONCAT(DISTINCT g.name ORDER BY g.name SEPARATOR '\x1f')  AS group_names
 					 FROM {$wpdb->prefix}cu_rules r
 					 LEFT JOIN {$wpdb->prefix}cu_groups g ON g.id = r.group_id
-					 WHERE (g.enabled = 1 OR r.group_id IS NULL)
-					   AND (%s = '' OR (r.url_pattern LIKE %s OR r.asset_handle LIKE %s OR r.source_label LIKE %s))
+					 WHERE (%s = '' OR (r.url_pattern LIKE %s OR r.asset_handle LIKE %s OR r.source_label LIKE %s))
 					   AND (%s = '' OR r.match_type = %s)
 					   AND (%s = '' OR r.asset_type = %s)
 					   AND (%s = '' OR r.device_type = %s)
@@ -323,8 +419,7 @@ class RuleRepository {
 					    SELECT 1
 					    FROM {$wpdb->prefix}cu_rules r
 					    LEFT JOIN {$wpdb->prefix}cu_groups g ON g.id = r.group_id
-					    WHERE (g.enabled = 1 OR r.group_id IS NULL)
-					      AND (%s = '' OR (r.url_pattern LIKE %s OR r.asset_handle LIKE %s OR r.source_label LIKE %s))
+					    WHERE (%s = '' OR (r.url_pattern LIKE %s OR r.asset_handle LIKE %s OR r.source_label LIKE %s))
 					      AND (%s = '' OR r.match_type = %s)
 					      AND (%s = '' OR r.asset_type = %s)
 					      AND (%s = '' OR r.device_type = %s)
@@ -436,9 +531,9 @@ class RuleRepository {
 		}
 		global $wpdb;
 		$results = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-			"SELECT g.*, COUNT(r.id) AS rule_count
+			"SELECT g.*, COUNT(gi.id) AS rule_count
 			 FROM {$wpdb->prefix}cu_groups g
-			 LEFT JOIN {$wpdb->prefix}cu_rules r ON r.group_id = g.id
+			 LEFT JOIN {$wpdb->prefix}cu_group_items gi ON gi.group_id = g.id
 			 GROUP BY g.id
 			 ORDER BY g.name"
 		) ?: [];
@@ -485,8 +580,15 @@ class RuleRepository {
 		self::invalidate_caches();
 
 		if ( $result !== false && isset( $data['enabled'] ) ) {
+			if ( ! empty( $data['enabled'] ) ) {
+				self::activate_group_items( $id );
+				$action = 'group_activate';
+			} else {
+				self::deactivate_group_items( $id );
+				$action = 'group_deactivate';
+			}
 			$group = self::get_group( $id );
-			self::log_action( 'group_toggle', get_current_user_id(), null, $group );
+			self::log_action( $action, get_current_user_id(), null, $group );
 		}
 
 		return $result !== false;
@@ -494,11 +596,267 @@ class RuleRepository {
 
 	public static function delete_group( int $id ): bool {
 		global $wpdb;
-		// Rules become ungrouped
-		$wpdb->update( "{$wpdb->prefix}cu_rules", [ 'group_id' => null ], [ 'group_id' => $id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		self::deactivate_group_items( $id );
+		self::delete_group_items( $id );
 		$result = (bool) $wpdb->delete( "{$wpdb->prefix}cu_groups", [ 'id' => $id ], [ '%d' ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		self::invalidate_caches();
 		return $result;
+	}
+
+	// -------------------------------------------------------------------------
+	// Group Items
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Get all saved snapshots for a group.
+	 *
+	 * @param int $group_id
+	 * @return object[]
+	 */
+	public static function get_group_items( int $group_id ): array {
+		$cache_key = "cdunloader_group_items_{$group_id}";
+		$cached    = wp_cache_get( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+		global $wpdb;
+		$results = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}cu_group_items WHERE group_id = %d ORDER BY created_at DESC",
+				$group_id
+			)
+		) ?: [];
+		wp_cache_set( $cache_key, $results );
+		return $results;
+	}
+
+	/**
+	 * Get a single group item snapshot by ID.
+	 *
+	 * @param int $id
+	 * @return object|null
+	 */
+	public static function get_group_item( int $id ): ?object {
+		$cache_key = "cdunloader_group_item_{$id}";
+		$cached    = wp_cache_get( $cache_key );
+		if ( false !== $cached ) {
+			return $cached ?: null;
+		}
+		global $wpdb;
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}cu_group_items WHERE id = %d",
+				$id
+			)
+		) ?: null;
+		wp_cache_set( $cache_key, $row ?: 0 );
+		return $row;
+	}
+
+	/**
+	 * Find an existing snapshot in a group matching the given rule fields.
+	 * Uses the same NULL-safe matching as the migration to avoid false positives.
+	 *
+	 * @param int   $group_id
+	 * @param array $snapshot  Keys: url_pattern, match_type, asset_handle, asset_type,
+	 *                                device_type, condition_type, condition_value, condition_invert
+	 * @return object|null
+	 */
+	public static function find_duplicate_group_item( int $group_id, array $snapshot ): ?object {
+		global $wpdb;
+		$condition_type  = $snapshot['condition_type']  ?? null;
+		$condition_value = $snapshot['condition_value'] ?? null;
+
+		if ( null === $condition_type && null === $condition_value ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			return $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}cu_group_items
+					 WHERE group_id         = %d
+					   AND url_pattern      = %s
+					   AND match_type       = %s
+					   AND asset_handle     = %s
+					   AND asset_type       = %s
+					   AND device_type      = %s
+					   AND condition_invert = %d
+					   AND condition_type   IS NULL
+					   AND condition_value  IS NULL",
+					$group_id,
+					$snapshot['url_pattern'],
+					$snapshot['match_type'],
+					$snapshot['asset_handle'],
+					$snapshot['asset_type'],
+					$snapshot['device_type'] ?? 'all',
+					(int) ( $snapshot['condition_invert'] ?? 0 )
+				)
+			) ?: null;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}cu_group_items
+				 WHERE group_id         = %d
+				   AND url_pattern      = %s
+				   AND match_type       = %s
+				   AND asset_handle     = %s
+				   AND asset_type       = %s
+				   AND device_type      = %s
+				   AND condition_invert = %d
+				   AND IFNULL(condition_type, '')  = %s
+				   AND IFNULL(condition_value, '') = %s",
+				$group_id,
+				$snapshot['url_pattern'],
+				$snapshot['match_type'],
+				$snapshot['asset_handle'],
+				$snapshot['asset_type'],
+				$snapshot['device_type'] ?? 'all',
+				(int) ( $snapshot['condition_invert'] ?? 0 ),
+				(string) ( $condition_type  ?? '' ),
+				(string) ( $condition_value ?? '' )
+			)
+		) ?: null;
+	}
+
+	/**
+	 * Create a new group item snapshot. Returns the new ID, or existing ID if duplicate,
+	 * or WP_Error on DB failure.
+	 *
+	 * @param int   $group_id
+	 * @param array $snapshot  Same shape as find_duplicate_group_item $snapshot param.
+	 * @return int|\WP_Error
+	 */
+	public static function create_group_item( int $group_id, array $snapshot ): int|\WP_Error {
+		$existing = self::find_duplicate_group_item( $group_id, $snapshot );
+		if ( null !== $existing ) {
+			return (int) $existing->id;
+		}
+		global $wpdb;
+		$inserted = $wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			"{$wpdb->prefix}cu_group_items",
+			[
+				'group_id'         => $group_id,
+				'url_pattern'      => $snapshot['url_pattern'],
+				'match_type'       => $snapshot['match_type'],
+				'asset_handle'     => $snapshot['asset_handle'],
+				'asset_type'       => $snapshot['asset_type'],
+				'source_label'     => $snapshot['source_label']     ?? '',
+				'device_type'      => $snapshot['device_type']      ?? 'all',
+				'condition_type'   => $snapshot['condition_type']   ?: null,
+				'condition_value'  => $snapshot['condition_value']  ?: null,
+				'condition_invert' => (int) ( $snapshot['condition_invert'] ?? 0 ),
+				'label'            => $snapshot['label']            ?: null,
+				'created_by'       => get_current_user_id()         ?: null,
+				'created_at'       => current_time( 'mysql', true ),
+			],
+			[ '%d','%s','%s','%s','%s','%s','%s','%s','%s','%d','%s','%d','%s' ]
+		);
+		if ( false === $inserted ) {
+			return new \WP_Error( 'db_error', $wpdb->last_error );
+		}
+		$new_id = (int) $wpdb->insert_id;
+		wp_cache_delete( "cdunloader_group_items_{$group_id}" );
+		return $new_id;
+	}
+
+	/**
+	 * Delete all snapshot items for a group. Returns count of deleted rows.
+	 *
+	 * @param int $group_id
+	 * @return int
+	 */
+	public static function delete_group_items( int $group_id ): int {
+		global $wpdb;
+		$deleted = (int) $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->prefix}cu_group_items WHERE group_id = %d",
+				$group_id
+			)
+		);
+		wp_cache_delete( "cdunloader_group_items_{$group_id}" );
+		return $deleted;
+	}
+
+	/**
+	 * Materialise active rules from a group's saved snapshots.
+	 * Skips snapshots that already have an identical active rule in cu_rules.
+	 * Sets group_item_id on each created active rule.
+	 *
+	 * @param int $group_id
+	 * @return int Number of active rules created.
+	 */
+	public static function activate_group_items( int $group_id ): int {
+		$items   = self::get_group_items( $group_id );
+		$created = 0;
+
+		foreach ( $items as $item ) {
+			$data = [
+				'url_pattern'      => $item->url_pattern,
+				'match_type'       => $item->match_type,
+				'asset_handle'     => $item->asset_handle,
+				'asset_type'       => $item->asset_type,
+				'source_label'     => $item->source_label     ?? '',
+				'device_type'      => $item->device_type      ?? 'all',
+				'condition_type'   => $item->condition_type   ?: null,
+				'condition_value'  => $item->condition_value  ?: null,
+				'condition_invert' => (int) ( $item->condition_invert ?? 0 ),
+				'group_id'         => $group_id,
+				'group_item_id'    => (int) $item->id,
+				'label'            => $item->label            ?: null,
+			];
+
+			// find_duplicate checks cu_rules for an identical row in the same group scope.
+			// If one exists, skip — don't create a duplicate active rule.
+			if ( null !== self::find_duplicate( $data ) ) {
+				continue;
+			}
+
+			$result = self::create_rule( $data );
+			if ( ! is_wp_error( $result ) ) {
+				++$created;
+			}
+		}
+
+		return $created;
+	}
+
+	/**
+	 * Remove active rules in cu_rules that were created from this group's snapshots.
+	 * Identified by group_item_id pointing to a snapshot in this group.
+	 * Does NOT delete cu_group_items rows.
+	 *
+	 * @param int $group_id
+	 * @return int Number of active rules deleted.
+	 */
+	public static function deactivate_group_items( int $group_id ): int {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT r.id FROM {$wpdb->prefix}cu_rules r
+				 INNER JOIN {$wpdb->prefix}cu_group_items gi ON gi.id = r.group_item_id
+				 WHERE gi.group_id = %d",
+				$group_id
+			)
+		) ?: [];
+
+		if ( empty( $ids ) ) {
+			// Fallback: also remove rules still linked only via legacy group_id.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT id FROM {$wpdb->prefix}cu_rules WHERE group_id = %d AND group_item_id IS NULL",
+					$group_id
+				)
+			) ?: [];
+		}
+
+		if ( empty( $ids ) ) {
+			return 0;
+		}
+
+		return self::delete_rules( array_map( 'intval', $ids ) );
 	}
 
 	// -------------------------------------------------------------------------

@@ -28,6 +28,9 @@ class RestController {
 		register_rest_route( self::NS, '/rules/bulk-assign-group', [
 			[ 'methods' => 'POST', 'callback' => [ $this, 'bulk_assign_group' ], 'permission_callback' => [ $this, 'check_permission' ] ],
 		] );
+		register_rest_route( self::NS, '/rules/enable', [
+			[ 'methods' => 'POST', 'callback' => [ $this, 'enable_asset' ], 'permission_callback' => [ $this, 'check_permission' ] ],
+		] );
 		register_rest_route( self::NS, '/rules/validate-pattern', [
 			[ 'methods' => 'POST', 'callback' => [ $this, 'validate_pattern' ], 'permission_callback' => [ $this, 'check_permission' ] ],
 		] );
@@ -44,6 +47,9 @@ class RestController {
 		register_rest_route( self::NS, '/groups/(?P<id>\\d+)', [
 			[ 'methods' => 'PATCH',  'callback' => [ $this, 'update_group' ], 'permission_callback' => [ $this, 'check_permission' ] ],
 			[ 'methods' => 'DELETE', 'callback' => [ $this, 'delete_group' ], 'permission_callback' => [ $this, 'check_permission' ] ],
+		] );
+		register_rest_route( self::NS, '/groups/(?P<id>\\d+)/items', [
+			[ 'methods' => 'GET', 'callback' => [ $this, 'get_group_items' ], 'permission_callback' => [ $this, 'check_permission' ] ],
 		] );
 
 		// Log
@@ -171,6 +177,33 @@ class RestController {
 		return new \WP_REST_Response( [ 'deleted' => $deleted ] );
 	}
 
+	/**
+	 * Enable an asset on the current page or globally by removing the matching active rule(s).
+	 * Group item snapshots are never removed by this endpoint.
+	 *
+	 * POST /rules/enable
+	 * Body: { asset_handle, asset_type, device_type, page_url, scope }
+	 */
+	public function enable_asset( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$handle   = sanitize_text_field( (string) $request->get_param( 'asset_handle' ) );
+		$type     = sanitize_text_field( (string) $request->get_param( 'asset_type' ) );
+		$device   = sanitize_text_field( (string) ( $request->get_param( 'device_type' ) ?? 'all' ) );
+		$page_url = esc_url_raw( (string) $request->get_param( 'page_url' ) );
+		$scope    = sanitize_text_field( (string) $request->get_param( 'scope' ) );
+
+		if ( empty( $handle ) || empty( $type ) || empty( $page_url ) ) {
+			return new \WP_Error( 'missing_params', 'asset_handle, asset_type, and page_url are required.', [ 'status' => 400 ] );
+		}
+
+		if ( ! in_array( $scope, [ 'page', 'global' ], true ) ) {
+			return new \WP_Error( 'invalid_scope', 'scope must be "page" or "global".', [ 'status' => 400 ] );
+		}
+
+		$deleted = RuleRepository::delete_active_rules_by_scope( $handle, $type, $device, $scope, $page_url );
+
+		return new \WP_REST_Response( [ 'deleted' => $deleted ], 200 );
+	}
+
 	public function bulk_assign_group( \WP_REST_Request $request ): \WP_REST_Response {
 		$data     = $request->get_json_params();
 		$ids      = array_map( 'intval', (array) ( $data['ids']      ?? [] ) );
@@ -256,6 +289,23 @@ class RestController {
 		$id = (int) $request->get_param( 'id' );
 		RuleRepository::delete_group( $id );
 		return new \WP_REST_Response( [ 'deleted' => true ] );
+	}
+
+	/**
+	 * Get saved group item snapshots for a group.
+	 *
+	 * GET /groups/{id}/items
+	 */
+	public function get_group_items( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$id    = (int) $request->get_param( 'id' );
+		$group = RuleRepository::get_group( $id );
+
+		if ( ! $group ) {
+			return new \WP_Error( 'not_found', 'Group not found.', [ 'status' => 404 ] );
+		}
+
+		$items = RuleRepository::get_group_items( $id );
+		return new \WP_REST_Response( $items, 200 );
 	}
 
 	// -------------------------------------------------------------------------
