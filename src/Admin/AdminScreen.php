@@ -113,21 +113,33 @@ class AdminScreen {
 
 	private function handle_export(): void {
 		// Use get_all_rules() so disabled-group rules are included in the backup.
-		// Strip the runtime-only group_enabled JOIN column before export.
+		// Strip the runtime-only group_enabled JOIN column and stale group_item_id before export.
 		$all_rules = RuleRepository::get_all_rules();
 		$rules     = array_map( function ( $r ) {
 			$arr = (array) $r;
 			unset( $arr['group_enabled'] );
+			unset( $arr['group_item_id'] );
 			return $arr;
 		}, $all_rules );
 
 		$groups = RuleRepository::get_all_groups();
 
+		// Collect group items for all groups.
+		$group_items = [];
+		foreach ( $groups as $group ) {
+			$gid   = (int) $group->id;
+			$items = RuleRepository::get_group_items( $gid );
+			foreach ( $items as $item ) {
+				$group_items[] = (array) $item;
+			}
+		}
+
 		$payload = [
-			'version'    => CDUNLOADER_VERSION,
-			'exported_at'=> gmdate( 'c' ),
-			'groups'     => $groups,
-			'rules'      => $rules,
+			'version'     => CDUNLOADER_VERSION,
+			'exported_at' => gmdate( 'c' ),
+			'groups'      => $groups,
+			'group_items' => $group_items,
+			'rules'       => $rules,
 		];
 
 		$filename = 'code-unloader-backup-' . gmdate( 'Y-m-d' ) . '.json';
@@ -200,7 +212,31 @@ class AdminScreen {
 			}
 		}
 
-		// ---- Step 2: Import rules, remapping group_id through the map ----
+		// ---- Step 2: Import group items, remapping group_id ----
+		if ( ! empty( $data['group_items'] ) && is_array( $data['group_items'] ) ) {
+			foreach ( $data['group_items'] as $item ) {
+				$old_gid = (int) ( $item['group_id'] ?? 0 );
+				$new_gid = $group_id_map[ $old_gid ] ?? null;
+				if ( null === $new_gid ) {
+					continue; // Skip orphaned items whose group wasn't imported.
+				}
+				$snapshot = [
+					'url_pattern'      => $item['url_pattern']      ?? '',
+					'match_type'       => $item['match_type']        ?? 'exact',
+					'asset_handle'     => $item['asset_handle']      ?? '',
+					'asset_type'       => $item['asset_type']        ?? 'js',
+					'source_label'     => $item['source_label']      ?? '',
+					'device_type'      => $item['device_type']       ?? 'all',
+					'condition_type'   => $item['condition_type']    ?: null,
+					'condition_value'  => $item['condition_value']   ?: null,
+					'condition_invert' => (int) ( $item['condition_invert'] ?? 0 ),
+					'label'            => $item['label']             ?: null,
+				];
+				RuleRepository::create_group_item( $new_gid, $snapshot );
+			}
+		}
+
+		// ---- Step 3: Import rules, remapping group_id through the map ----
 		$imported = 0;
 		foreach ( $data['rules'] ?? [] as $rule ) {
 			// Remap group_id: if the rule belonged to a group in the export,
@@ -215,6 +251,9 @@ class AdminScreen {
 					$rule['group_id'] = null;
 				}
 			}
+
+			// Strip stale group_item_id from export — it will be re-linked after import.
+			unset( $rule['group_item_id'] );
 
 			$result = RuleRepository::create_rule( $rule );
 			if ( ! is_wp_error( $result ) ) {
