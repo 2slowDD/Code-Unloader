@@ -397,8 +397,7 @@ class RuleRepository {
 					        GROUP_CONCAT(DISTINCT g.name ORDER BY g.name SEPARATOR '\x1f')  AS group_names
 					 FROM {$wpdb->prefix}cu_rules r
 					 LEFT JOIN {$wpdb->prefix}cu_groups g ON g.id = r.group_id
-					 WHERE (g.enabled = 1 OR r.group_id IS NULL)
-					   AND (%s = '' OR (r.url_pattern LIKE %s OR r.asset_handle LIKE %s OR r.source_label LIKE %s))
+					 WHERE (%s = '' OR (r.url_pattern LIKE %s OR r.asset_handle LIKE %s OR r.source_label LIKE %s))
 					   AND (%s = '' OR r.match_type = %s)
 					   AND (%s = '' OR r.asset_type = %s)
 					   AND (%s = '' OR r.device_type = %s)
@@ -420,8 +419,7 @@ class RuleRepository {
 					    SELECT 1
 					    FROM {$wpdb->prefix}cu_rules r
 					    LEFT JOIN {$wpdb->prefix}cu_groups g ON g.id = r.group_id
-					    WHERE (g.enabled = 1 OR r.group_id IS NULL)
-					      AND (%s = '' OR (r.url_pattern LIKE %s OR r.asset_handle LIKE %s OR r.source_label LIKE %s))
+					    WHERE (%s = '' OR (r.url_pattern LIKE %s OR r.asset_handle LIKE %s OR r.source_label LIKE %s))
 					      AND (%s = '' OR r.match_type = %s)
 					      AND (%s = '' OR r.asset_type = %s)
 					      AND (%s = '' OR r.device_type = %s)
@@ -533,9 +531,9 @@ class RuleRepository {
 		}
 		global $wpdb;
 		$results = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-			"SELECT g.*, COUNT(r.id) AS rule_count
+			"SELECT g.*, COUNT(gi.id) AS rule_count
 			 FROM {$wpdb->prefix}cu_groups g
-			 LEFT JOIN {$wpdb->prefix}cu_rules r ON r.group_id = g.id
+			 LEFT JOIN {$wpdb->prefix}cu_group_items gi ON gi.group_id = g.id
 			 GROUP BY g.id
 			 ORDER BY g.name"
 		) ?: [];
