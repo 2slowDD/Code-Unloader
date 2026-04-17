@@ -24,8 +24,8 @@ class Installer {
 		global $wpdb;
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}cu_log" );
-		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}cu_group_items" );
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}cu_rules" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}cu_group_items" );
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}cu_groups" );
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
 		delete_option( CDUNLOADER_OPTION_KILL );
@@ -82,7 +82,7 @@ class Installer {
 				asset_handle      VARCHAR(255) NOT NULL,
 				asset_type        ENUM('js','css','inline_js','inline_css') NOT NULL,
 				source_label      VARCHAR(255) NOT NULL DEFAULT '',
-				device_type       ENUM('all','mobile','desktop') NOT NULL DEFAULT 'all',
+				device_type       ENUM('all','desktop','mobile') NOT NULL DEFAULT 'all',
 				condition_type    VARCHAR(64) DEFAULT NULL,
 				condition_value   VARCHAR(255) DEFAULT NULL,
 				condition_invert  TINYINT(1) NOT NULL DEFAULT 0,
@@ -99,8 +99,7 @@ class Installer {
 			$col = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 				$wpdb->prepare(
 					"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-					 WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'group_item_id'",
-					DB_NAME,
+					 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = 'group_item_id'",
 					$wpdb->prefix . 'cu_rules'
 				)
 			);
@@ -139,7 +138,7 @@ class Installer {
 			asset_handle      VARCHAR(255) NOT NULL,
 			asset_type        ENUM('js','css','inline_js','inline_css') NOT NULL,
 			source_label      VARCHAR(255) NOT NULL DEFAULT '',
-			device_type       ENUM('all','mobile','desktop') NOT NULL DEFAULT 'all',
+			device_type       ENUM('all','desktop','mobile') NOT NULL DEFAULT 'all',
 			condition_type    VARCHAR(64) DEFAULT NULL,
 			condition_value   VARCHAR(255) DEFAULT NULL,
 			condition_invert  TINYINT(1) NOT NULL DEFAULT 0,
