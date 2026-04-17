@@ -4,7 +4,7 @@ Tags: performance, assets, scripts, styles, dequeue
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.4.2
+Stable tag: 1.5.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,13 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 6. Admin screen — Settings tab with kill switch
 
 == Changelog ==
+
+= 1.5.0 =
+* Added group snapshot library (cu_group_items) — group membership is now independent of active rules
+* Added scoped panel re-enable: "On this page" and "Globally" buttons
+* Added REST endpoints: POST /rules/enable, GET /groups/{id}/items
+* Group counts now reflect saved snapshots, not active rules
+* Automatic non-destructive migration from 1.4.x
 
 = 1.4.2 =
 * Fixed: DB migration now runs automatically on plugin update — schema upgrades no longer require manual deactivation/reactivation
