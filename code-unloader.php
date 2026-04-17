@@ -3,7 +3,7 @@
  * Plugin Name: Code Unloader
  * Plugin URI:  https://wpservice.pro/
  * Description: Per-page JavaScript & CSS asset management. Surgically dequeue scripts and styles on any page using exact, wildcard, or regex URL rules.
- * Version:     1.4.2
+ * Version:     1.5.0
  * Requires at least: 6.2
  * Requires PHP: 8.0
  * Author:      Dalibor Druzinec
@@ -22,11 +22,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Constants
-define( 'CDUNLOADER_VERSION',     '1.4.2' );
+define( 'CDUNLOADER_VERSION',     '1.5.0' );
 define( 'CDUNLOADER_FILE',        __FILE__ );
 define( 'CDUNLOADER_DIR',         plugin_dir_path( __FILE__ ) );
 define( 'CDUNLOADER_URL',         plugin_dir_url( __FILE__ ) );
-define( 'CDUNLOADER_DB_VERSION',  '1.2' );
+define( 'CDUNLOADER_DB_VERSION',  '1.5' );
 define( 'CDUNLOADER_OPTION_KILL', 'cdunloader_kill_switch' );
 define( 'CDUNLOADER_OPTION_DBVER','cdunloader_db_version' );
 
