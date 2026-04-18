@@ -436,4 +436,89 @@
 		openViewRulesModal(btn.dataset.id, btn.dataset.name);
 	});
 
+	// ---------------------------------------------------------------------
+	// Delete All Groups — mirrors the Delete All Rules pattern.
+	// Server-side semantics (in RuleRepository::delete_all_groups):
+	//   - deletes all cu_groups rows
+	//   - deletes all cu_group_items snapshots (non-active "orphan" rules)
+	//   - clears group_id / group_item_id on active cu_rules rows — active
+	//     rules survive the wipe and become ungrouped.
+	// ---------------------------------------------------------------------
+	const deleteAllGroupsBtn = document.getElementById('cu-delete-all-groups-btn');
+	if (deleteAllGroupsBtn) {
+		deleteAllGroupsBtn.addEventListener('click', async function () {
+			if (!confirm('Delete ALL groups? This cannot be undone.\n\nActive rules will remain active but become ungrouped. Group snapshots will be removed.')) return;
+			this.disabled = true; this.textContent = 'Deleting…';
+			try {
+				const r = await api('DELETE', '/groups/delete-all');
+				notice(`Deleted ${r.deleted} group(s).`);
+				// Groups tab is server-rendered; reload to reflect the change.
+				window.location.reload();
+			} catch (err) {
+				notice('Error: ' + err.message, 'error');
+				this.disabled = false; this.textContent = 'Delete All Groups';
+			}
+		});
+	}
+
+	// ---------------------------------------------------------------------
+	// Cross-tab live sync — listen for rule mutations from the CU panel
+	// (or other admin tabs) and refresh the Rules tab content in place.
+	// Scoped to the Rules tab only: checks the `tab` query param.
+	// ---------------------------------------------------------------------
+	(function wireCrossTabSync() {
+		const params = new URLSearchParams(window.location.search);
+		const currentTab = params.get('tab') || 'rules';
+		if (currentTab !== 'rules') return;
+		if (!window.CuBus || typeof window.CuBus.on !== 'function') return;
+
+		let refreshTimer = null;
+
+		function debounceRefresh() {
+			if (refreshTimer) clearTimeout(refreshTimer);
+			refreshTimer = setTimeout(refreshRulesTable, 250);
+		}
+
+		async function refreshRulesTable() {
+			try {
+				const res = await fetch(window.location.href, {
+					credentials: 'same-origin',
+					headers: { 'Accept': 'text/html' },
+				});
+				if (!res.ok) return;
+				const html = await res.text();
+				const doc  = new DOMParser().parseFromString(html, 'text/html');
+
+				// Replace the list table tbody (WP List Table uses id="the-list").
+				const newTbody = doc.getElementById('the-list');
+				const curTbody = document.getElementById('the-list');
+				if (newTbody && curTbody) {
+					curTbody.innerHTML = newTbody.innerHTML;
+				}
+
+				// Replace the "N total rules" counter.
+				const newCount = doc.getElementById('cu-total-rules-count');
+				const curCount = document.getElementById('cu-total-rules-count');
+				if (newCount && curCount) {
+					curCount.textContent = newCount.textContent;
+				}
+
+				// Replace pagination (tablenav) so counts and page links stay accurate.
+				const newNavs = doc.querySelectorAll('.tablenav');
+				const curNavs = document.querySelectorAll('.tablenav');
+				if (newNavs.length && curNavs.length === newNavs.length) {
+					curNavs.forEach(function (nav, i) {
+						nav.innerHTML = newNavs[i].innerHTML;
+					});
+				}
+			} catch (e) { /* noop — next event will retry */ }
+		}
+
+		window.CuBus.on(function (msg) {
+			if (!msg || msg.type !== 'cu.rule.changed') return;
+			if (msg.source === 'admin') return; // ignore own echoes
+			debounceRefresh();
+		});
+	})();
+
 })();

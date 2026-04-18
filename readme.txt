@@ -4,7 +4,7 @@ Tags: performance, assets, scripts, styles, dequeue
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.5.0
+Stable tag: 1.4.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,22 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 6. Admin screen — Settings tab with kill switch
 
 == Changelog ==
+
+= 1.4.4 =
+* Added: "Delete All Groups" button on the Groups tab. Wipes all groups and their snapshots. Active rules survive and become ungrouped.
+* Added: live sync between frontend CU Panel and admin Rules tab — rule changes made from the panel now update the Rules tab list + total count automatically (same-browser only, via BroadcastChannel with a storage-event fallback).
+
+= 1.4.3 =
+* Fixed: `POST /rules` returning 500 (Internal Server Error) when creating rules whose 6-column scope (url_pattern, match_type, asset_handle, asset_type, device_type, group_id) already existed with different condition settings — the in-PHP duplicate check was stricter than the DB UNIQUE KEY, allowing the insert to fall through to a duplicate-key violation
+* Fixed: AI Assets Scanner push silently dropping rules — same root cause as above; pushed rules that shared the 6-column scope but differed in condition fields were rejected by the DB after passing the PHP dedup check
+* Fixed: cu-panel "deactivate second asset" 500 error — same root cause
+* Fixed: page-scoped asset re-enable (`POST /rules/enable` with `scope: page`) threw a TypeError — `PatternMatcher::match()` was called with the pre-1.5 signature
+* Internal: `RuleRepository::find_duplicate()` now matches the DB UNIQUE KEY exactly (6-column identity). Conditions are attributes of a rule, not part of its identity — one active rule per (url_pattern, match_type, asset_handle, asset_type, device_type, group_id) scope
+* Internal: `cu_log.action` ENUM in fresh `CREATE TABLE` now includes `group_activate` and `group_deactivate` (matches the migration ALTER)
+* Internal: added defensive auto-heal for legacy `identity_key` schema drift on cu_rules (pre-release dev artifact) — drops the orphan column + misaligned UNIQUE KEY and re-adds the correct 6-column composite key
+* Internal: added companion auto-heal for legacy `snapshot_key` schema drift on cu_group_items — same pattern, different table; collapsed group snapshots to 1 per group, which broke group enable/disable cascade on rules
+* Both heals safety-gated: bail without data loss if pre-existing rows would violate the corrected key
+* Schema version bumped to 1.5.2 to trigger both heals on sites already at DB 1.5
 
 = 1.5.0 =
 * Added group snapshot library (cu_group_items) — group membership is now independent of active rules
@@ -261,6 +277,9 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.4.3 =
+Hotfix for 1.5.0. Fixes 500 errors on POST /rules (second asset deactivation, AI Scanner rule import). Includes defensive auto-heal for a legacy `identity_key` schema drift seen on pre-release dev installs. No deactivate/activate required.
 
 = 1.1.0 =
 Panel persistence and inline block detection fixes. Bump to v1.1.0 recommended.

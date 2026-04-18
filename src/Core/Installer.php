@@ -229,15 +229,284 @@ class Installer {
 			unset( $grouped_rules, $rule, $existing_item, $item_id, $batch_size, $offset );
 
 			// Expand cu_log action ENUM to include group_activate and group_deactivate.
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- MODIFY COLUMN on an ENUM cannot use dbDelta(); one-time DDL inside a version-gated migration block, genuine false positive.
 			$wpdb->query(
 				"ALTER TABLE {$wpdb->prefix}cu_log
 				 MODIFY COLUMN action ENUM('create','delete','group_toggle','group_activate','group_deactivate','killswitch') NOT NULL"
 			);
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
+		}
+
+		// 1.5 → 1.5.1: repair legacy `identity_key` schema drift on cu_rules.
+		// Some installations (seen in pre-release dev builds) carry a
+		// CHAR(64) `identity_key` column with a single-column UNIQUE KEY
+		// `uniq_rule` on it. No code in this plugin populates that column,
+		// so every INSERT defaults to `''` and collides with any prior
+		// inserted row, producing "Duplicate entry '' for key 'uniq_rule'".
+		// Detection is schema-state-based (not just version-based) so the
+		// repair is a no-op on correctly-migrated sites.
+		if ( version_compare( $installed, '1.5.1', '<' ) ) {
+			self::heal_identity_key_drift();
+		}
+
+		// 1.5.1 → 1.5.2: repair legacy `snapshot_key` schema drift on cu_group_items.
+		// Companion drift to the identity_key issue — same pre-release artifact,
+		// different table. `cu_group_items.snapshot_key CHAR(64) NOT NULL` with
+		// `UNIQUE KEY uniq_group_item (group_id, snapshot_key)` produces the same
+		// "Duplicate entry '' for key 'uniq_group_item'" failure mode: first
+		// snapshot per group succeeds (empty string is unique within group_id);
+		// all subsequent snapshots in the same group collide. Visible symptom:
+		// Groups tab shows 1 item per group regardless of true rule count, and
+		// active rules pushed into the group end up with NULL group_item_id.
+		if ( version_compare( $installed, '1.5.2', '<' ) ) {
+			self::heal_snapshot_key_drift();
 		}
 
 		self::create_tables();
 		update_option( CDUNLOADER_OPTION_DBVER, CDUNLOADER_DB_VERSION );
+	}
+
+	/**
+	 * Detect and repair the legacy single-column `uniq_rule` / `identity_key`
+	 * schema drift. Safe to call on correctly-migrated sites — both repair
+	 * steps below are independently idempotent and no-op when the drift is
+	 * not present.
+	 *
+	 * Drift origin: `cu_rules.identity_key CHAR(64) NOT NULL DEFAULT ''` with
+	 * a single-column `UNIQUE KEY uniq_rule (identity_key)`. No plugin code
+	 * populates the column, so every INSERT writes `''` and collides with
+	 * any prior inserted row ("Duplicate entry '' for key 'uniq_rule'").
+	 *
+	 * Step A — remove drift artifacts (runs if `identity_key` column exists):
+	 *   1. Drop the bad `uniq_rule` index (if it still exists).
+	 *   2. Drop the orphan `identity_key` column.
+	 *
+	 * Step B — ensure correct uniq_rule exists (runs if uniq_rule is missing
+	 * or malformed after Step A, or on any site whose uniq_rule drifted for
+	 * other reasons):
+	 *   3. Safety-gate on a duplicate-groups probe — if pre-existing rows
+	 *      would violate the corrected key, bail and store a transient so
+	 *      an admin notice can surface the conflict instead of losing data.
+	 *   4. Add `UNIQUE KEY uniq_rule (url_pattern, match_type, asset_handle,
+	 *      asset_type, device_type, group_id)`.
+	 *
+	 * Splitting the work into two independently idempotent steps means a
+	 * partial failure (DROP COLUMN succeeds, ADD KEY fails) self-heals on
+	 * the next call instead of leaving the table without `uniq_rule`.
+	 */
+	private static function heal_identity_key_drift(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'cu_rules';
+
+		// ---- Step A: probe + remove drift artifacts ----
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only information_schema probes; no caching layer applicable.
+		$has_identity_key = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM information_schema.COLUMNS
+				 WHERE table_schema = DATABASE()
+				   AND table_name   = %s
+				   AND column_name  = 'identity_key'",
+				$table
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( 1 === $has_identity_key ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$uniq_rule_exists = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(DISTINCT index_name) FROM information_schema.STATISTICS
+					 WHERE table_schema = DATABASE()
+					   AND table_name   = %s
+					   AND index_name   = 'uniq_rule'",
+					$table
+				)
+			);
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL inside version-gated migration; dbDelta() cannot drop indexes or columns, genuine false positive per wp-compliance rule 20.
+			if ( $uniq_rule_exists > 0 ) {
+				$wpdb->query( "ALTER TABLE {$wpdb->prefix}cu_rules DROP INDEX uniq_rule" );
+			}
+			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cu_rules DROP COLUMN identity_key" );
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
+		}
+
+		// ---- Step B: ensure the correct uniq_rule exists ----
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$uniq_rule_cols = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT COLUMN_NAME FROM information_schema.STATISTICS
+				 WHERE table_schema = DATABASE()
+				   AND table_name   = %s
+				   AND index_name   = 'uniq_rule'
+				 ORDER BY SEQ_IN_INDEX",
+				$table
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		$expected_cols = [ 'url_pattern', 'match_type', 'asset_handle', 'asset_type', 'device_type', 'group_id' ];
+		$is_correct    = ( $uniq_rule_cols === $expected_cols );
+		if ( $is_correct ) {
+			delete_transient( 'cdunloader_identity_key_heal_blocked' );
+			return;
+		}
+
+		// Safety gate: confirm no pairs of rows would violate the corrected key.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$duplicate_groups = (int) $wpdb->get_var(
+			"SELECT COUNT(*) FROM (
+				SELECT 1 FROM {$wpdb->prefix}cu_rules
+				GROUP BY url_pattern, match_type, asset_handle, asset_type, device_type, IFNULL(group_id, 0)
+				HAVING COUNT(*) > 1
+			) AS d"
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( $duplicate_groups > 0 ) {
+			set_transient( 'cdunloader_identity_key_heal_blocked', (int) $duplicate_groups, DAY_IN_SECONDS );
+			return;
+		}
+
+		// If uniq_rule exists but on wrong columns, drop it before re-adding.
+		if ( ! empty( $uniq_rule_cols ) ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL inside version-gated migration; dbDelta() cannot drop indexes.
+			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cu_rules DROP INDEX uniq_rule" );
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
+		}
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL inside version-gated migration; dbDelta() cannot add composite prefixed UNIQUE KEYs reliably.
+		$wpdb->query(
+			"ALTER TABLE {$wpdb->prefix}cu_rules
+			 ADD UNIQUE KEY uniq_rule
+			     (url_pattern(191), match_type, asset_handle(191), asset_type, device_type, group_id)"
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
+
+		delete_transient( 'cdunloader_identity_key_heal_blocked' );
+	}
+
+	/**
+	 * Companion to heal_identity_key_drift(), for the `cu_group_items` table.
+	 *
+	 * Drift origin: `cu_group_items.snapshot_key CHAR(64) NOT NULL` with
+	 * `UNIQUE KEY uniq_group_item (group_id, snapshot_key)`. No plugin code
+	 * populates `snapshot_key`, so INSERTs default to `''` and the second
+	 * snapshot in any group collides on the `(group_id, '')` composite.
+	 *
+	 * Step A — remove drift artifacts (runs if `snapshot_key` column exists):
+	 *   1. Drop the bad `uniq_group_item` index (if it still exists).
+	 *   2. Drop the orphan `snapshot_key` column.
+	 *
+	 * Step B — ensure correct `uniq_group_item` exists (runs if missing
+	 * or malformed). Correct key covers the full 9-column snapshot identity
+	 * used by `find_duplicate_group_item()`: `(group_id, url_pattern,
+	 * match_type, asset_handle, asset_type, device_type, condition_type,
+	 * condition_value, condition_invert)`. Safety-gated by a duplicate-groups
+	 * probe — bails without data loss if existing rows would violate the key.
+	 */
+	private static function heal_snapshot_key_drift(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'cu_group_items';
+
+		// ---- Step A: probe + remove drift artifacts ----
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only information_schema probes; no caching layer applicable.
+		$has_snapshot_key = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM information_schema.COLUMNS
+				 WHERE table_schema = DATABASE()
+				   AND table_name   = %s
+				   AND column_name  = 'snapshot_key'",
+				$table
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( 1 === $has_snapshot_key ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$uniq_group_item_exists = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(DISTINCT index_name) FROM information_schema.STATISTICS
+					 WHERE table_schema = DATABASE()
+					   AND table_name   = %s
+					   AND index_name   = 'uniq_group_item'",
+					$table
+				)
+			);
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL inside version-gated migration; dbDelta() cannot drop indexes or columns, genuine false positive per wp-compliance rule 20.
+			if ( $uniq_group_item_exists > 0 ) {
+				$wpdb->query( "ALTER TABLE {$wpdb->prefix}cu_group_items DROP INDEX uniq_group_item" );
+			}
+			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cu_group_items DROP COLUMN snapshot_key" );
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
+		}
+
+		// ---- Step B: ensure the correct uniq_group_item exists ----
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$uniq_cols = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT COLUMN_NAME FROM information_schema.STATISTICS
+				 WHERE table_schema = DATABASE()
+				   AND table_name   = %s
+				   AND index_name   = 'uniq_group_item'
+				 ORDER BY SEQ_IN_INDEX",
+				$table
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		$expected_cols = [
+			'group_id', 'url_pattern', 'match_type', 'asset_handle', 'asset_type',
+			'device_type', 'condition_type', 'condition_value', 'condition_invert',
+		];
+		$is_correct = ( $uniq_cols === $expected_cols );
+		if ( $is_correct ) {
+			delete_transient( 'cdunloader_snapshot_key_heal_blocked' );
+			return;
+		}
+
+		// Safety gate: confirm no pairs of rows would violate the corrected key.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$duplicate_groups = (int) $wpdb->get_var(
+			"SELECT COUNT(*) FROM (
+				SELECT 1 FROM {$wpdb->prefix}cu_group_items
+				GROUP BY group_id, url_pattern, match_type, asset_handle, asset_type, device_type,
+				         IFNULL(condition_type, ''), IFNULL(condition_value, ''), condition_invert
+				HAVING COUNT(*) > 1
+			) AS d"
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( $duplicate_groups > 0 ) {
+			set_transient( 'cdunloader_snapshot_key_heal_blocked', (int) $duplicate_groups, DAY_IN_SECONDS );
+			return;
+		}
+
+		// If uniq_group_item exists but on wrong columns, drop it before re-adding.
+		if ( ! empty( $uniq_cols ) ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL inside version-gated migration; dbDelta() cannot drop indexes.
+			$wpdb->query( "ALTER TABLE {$wpdb->prefix}cu_group_items DROP INDEX uniq_group_item" );
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
+		}
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- DDL inside version-gated migration; dbDelta() cannot add composite prefixed UNIQUE KEYs reliably.
+		$wpdb->query(
+			"ALTER TABLE {$wpdb->prefix}cu_group_items
+			 ADD UNIQUE KEY uniq_group_item
+			     (group_id, url_pattern(191), match_type, asset_handle(191), asset_type, device_type, condition_type(64), condition_value(191), condition_invert)"
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
+
+		delete_transient( 'cdunloader_snapshot_key_heal_blocked' );
 	}
 
 	private static function create_tables(): void {
@@ -303,7 +572,7 @@ class Installer {
 		$sql_log = "CREATE TABLE {$wpdb->prefix}cu_log (
 			id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
 			user_id      BIGINT UNSIGNED NOT NULL DEFAULT 0,
-			action       ENUM('create','delete','group_toggle','killswitch') NOT NULL,
+			action       ENUM('create','delete','group_toggle','group_activate','group_deactivate','killswitch') NOT NULL,
 			rule_id      INT UNSIGNED DEFAULT NULL,
 			snapshot     TEXT DEFAULT NULL,
 			created_at   DATETIME NOT NULL,

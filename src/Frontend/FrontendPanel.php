@@ -97,7 +97,8 @@ class FrontendPanel {
 
 	public function enqueue_panel_assets(): void {
 		wp_enqueue_style( 'cu-panel', CDUNLOADER_URL . 'assets/css/panel.css', [], CDUNLOADER_VERSION );
-		wp_enqueue_script( 'cu-panel', CDUNLOADER_URL . 'assets/js/panel.js', [], CDUNLOADER_VERSION, true );
+		wp_enqueue_script( 'cu-bus', CDUNLOADER_URL . 'assets/js/cu-bus.js', [], CDUNLOADER_VERSION, true );
+		wp_enqueue_script( 'cu-panel', CDUNLOADER_URL . 'assets/js/panel.js', [ 'cu-bus' ], CDUNLOADER_VERSION, true );
 
 		global $wp_scripts, $wp_styles;
 

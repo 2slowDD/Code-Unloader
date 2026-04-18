@@ -62,30 +62,25 @@ class RuleRepository {
 	public static function find_duplicate( array $data, int $exclude_id = 0 ): ?object {
 		global $wpdb;
 
-		$device_type      = $data['device_type']      ?? 'all';
-		$condition_invert = (int) ( $data['condition_invert'] ?? 0 );
-		$group_id         = ( isset( $data['group_id'] ) && '' !== $data['group_id'] && null !== $data['group_id'] )
+		$device_type = $data['device_type'] ?? 'all';
+		$group_id    = ( isset( $data['group_id'] ) && '' !== $data['group_id'] && null !== $data['group_id'] )
 			? (int) $data['group_id']
 			: null;
 
-		// Nullable columns (condition_type, condition_value, group_id) are matched with
-		// IFNULL() sentinels: '' for string columns (never a valid condition value), and
-		// 0 for group_id (auto-increment IDs start at 1, so 0 is never a real group).
-		// Exclude clause: (id != %d OR %d = 0) — when $exclude_id is 0 the OR branch is
-		// always true so no row is excluded; when > 0 the rule's own ID is skipped.
-		// This keeps the query a single static string with no interpolated variables.
+		// Matches the UNIQUE KEY uniq_rule (url_pattern, match_type, asset_handle, asset_type, device_type, group_id).
+		// Condition columns are intentionally excluded — the DB allows only one rule per this 6-column scope;
+		// conditions are attributes of a rule, not part of its identity.
+		// group_id uses IFNULL sentinel (0) because NULL != NULL in SQL unique indexes.
+		// Exclude clause: (id != %d OR %d = 0) — no-op when $exclude_id = 0.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		return $wpdb->get_row( $wpdb->prepare(
 			"SELECT * FROM {$wpdb->prefix}cu_rules
-			 WHERE url_pattern                = %s
-			   AND match_type                 = %s
-			   AND asset_handle               = %s
-			   AND asset_type                 = %s
-			   AND device_type                = %s
-			   AND condition_invert           = %d
-			   AND IFNULL(condition_type, '')  = %s
-			   AND IFNULL(condition_value, '') = %s
-			   AND IFNULL(group_id, 0)        = %d
+			 WHERE url_pattern        = %s
+			   AND match_type         = %s
+			   AND asset_handle       = %s
+			   AND asset_type         = %s
+			   AND device_type        = %s
+			   AND IFNULL(group_id, 0) = %d
 			   AND (id != %d OR %d = 0)
 			 LIMIT 1",
 			$data['url_pattern'],
@@ -93,10 +88,7 @@ class RuleRepository {
 			$data['asset_handle'],
 			$data['asset_type'],
 			$device_type,
-			$condition_invert,
-			$data['condition_type']  ?? '',
-			$data['condition_value'] ?? '',
-			$group_id                ?? 0,
+			$group_id ?? 0,
 			$exclude_id,
 			$exclude_id,
 		) ) ?: null;
@@ -279,10 +271,11 @@ class RuleRepository {
 				)
 			) ?: [];
 
+			$normalized_url = PatternMatcher::normalize_url( $page_url );
 			$rows_to_delete = array_filter(
 				$candidates,
-				static function ( $rule ) use ( $page_url ): bool {
-					return PatternMatcher::match( $page_url, $rule->url_pattern, $rule->match_type );
+				static function ( $rule ) use ( $normalized_url ): bool {
+					return PatternMatcher::match( $rule, $normalized_url );
 				}
 			);
 		}
@@ -601,6 +594,39 @@ class RuleRepository {
 		$result = (bool) $wpdb->delete( "{$wpdb->prefix}cu_groups", [ 'id' => $id ], [ '%d' ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		self::invalidate_caches();
 		return $result;
+	}
+
+	/**
+	 * Wipe every group and every snapshot, but keep active rules alive.
+	 *
+	 * Semantics (differs deliberately from delete_group):
+	 *   - all rows in cu_groups are deleted
+	 *   - all rows in cu_group_items are deleted (non-active "orphan" rules)
+	 *   - active rules in cu_rules are KEPT; their group_id and group_item_id
+	 *     columns are nulled out so they don't dangle at now-deleted groups.
+	 *
+	 * @return int Number of groups deleted.
+	 */
+	public static function delete_all_groups(): int {
+		global $wpdb;
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- static SQL, no user input, bulk admin maintenance.
+		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}cu_groups" );
+		if ( 0 === $count ) {
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			return 0;
+		}
+
+		// Keep active rules but clear their group references before the parent rows disappear.
+		$wpdb->query( "UPDATE {$wpdb->prefix}cu_rules SET group_id = NULL, group_item_id = NULL WHERE group_id IS NOT NULL OR group_item_id IS NOT NULL" );
+
+		// Delete all non-active snapshot rows, then all groups.
+		$wpdb->query( "DELETE FROM {$wpdb->prefix}cu_group_items" );
+		$wpdb->query( "DELETE FROM {$wpdb->prefix}cu_groups" );
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		self::invalidate_caches();
+		return $count;
 	}
 
 	// -------------------------------------------------------------------------

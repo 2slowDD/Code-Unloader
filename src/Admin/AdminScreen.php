@@ -72,7 +72,8 @@ class AdminScreen {
 			return;
 		}
 		wp_enqueue_style( 'cu-admin', CDUNLOADER_URL . 'assets/css/admin.css', [], CDUNLOADER_VERSION );
-		wp_enqueue_script( 'cu-admin', CDUNLOADER_URL . 'assets/js/admin.js', [], CDUNLOADER_VERSION, true );
+		wp_enqueue_script( 'cu-bus', CDUNLOADER_URL . 'assets/js/cu-bus.js', [], CDUNLOADER_VERSION, true );
+		wp_enqueue_script( 'cu-admin', CDUNLOADER_URL . 'assets/js/admin.js', [ 'cu-bus' ], CDUNLOADER_VERSION, true );
 		wp_localize_script( 'cu-admin', 'CDUNLOADER_ADMIN', [
 			'nonce'      => wp_create_nonce( 'wp_rest' ),
 			'api_base'   => esc_url( rest_url( 'code-unloader/v1' ) ),
@@ -506,6 +507,13 @@ class AdminScreen {
 	// -------------------------------------------------------------------------
 	private function render_groups_tab(): void {
 		$groups = RuleRepository::get_all_groups();
+
+		if ( ! empty( $groups ) ) {
+			echo '<div class="cu-groups-toolbar" style="margin-bottom:12px;">';
+			echo '<button type="button" id="cu-delete-all-groups-btn" class="button button-small cu-btn-danger">'
+				. esc_html__( 'Delete All Groups', 'code-unloader' ) . '</button>';
+			echo '</div>';
+		}
 
 		echo '<div class="cu-groups-grid" id="cu-groups-grid">';
 

@@ -44,6 +44,9 @@ class RestController {
 			[ 'methods' => 'GET',  'callback' => [ $this, 'get_groups' ],   'permission_callback' => [ $this, 'check_permission' ] ],
 			[ 'methods' => 'POST', 'callback' => [ $this, 'create_group' ], 'permission_callback' => [ $this, 'check_permission' ] ],
 		] );
+		register_rest_route( self::NS, '/groups/delete-all', [
+			[ 'methods' => 'DELETE', 'callback' => [ $this, 'delete_all_groups' ], 'permission_callback' => [ $this, 'check_permission' ] ],
+		] );
 		register_rest_route( self::NS, '/groups/(?P<id>\\d+)', [
 			[ 'methods' => 'PATCH',  'callback' => [ $this, 'update_group' ], 'permission_callback' => [ $this, 'check_permission' ] ],
 			[ 'methods' => 'DELETE', 'callback' => [ $this, 'delete_group' ], 'permission_callback' => [ $this, 'check_permission' ] ],
@@ -289,6 +292,16 @@ class RestController {
 		$id = (int) $request->get_param( 'id' );
 		RuleRepository::delete_group( $id );
 		return new \WP_REST_Response( [ 'deleted' => true ] );
+	}
+
+	/**
+	 * Wipe all groups + snapshots; keep active rules alive (ungrouped).
+	 *
+	 * DELETE /groups/delete-all
+	 */
+	public function delete_all_groups( \WP_REST_Request $request ): \WP_REST_Response {
+		$deleted = RuleRepository::delete_all_groups();
+		return new \WP_REST_Response( [ 'deleted' => $deleted ] );
 	}
 
 	/**

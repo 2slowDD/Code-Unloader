@@ -127,6 +127,17 @@ var cuClosePanel = function () {
 		});
 	}
 
+	/**
+	 * Broadcast a rule-mutation event to other same-browser tabs so listeners
+	 * (e.g. the admin Rules tab) can refresh themselves without a manual reload.
+	 * Silently no-ops when cu-bus.js is not loaded.
+	 */
+	function emitRuleChange(action) {
+		if (window.CuBus && typeof window.CuBus.emit === 'function') {
+			window.CuBus.emit({ type: 'cu.rule.changed', action: action, source: 'panel' });
+		}
+	}
+
 	function esc(s) {
 		return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 	}
@@ -192,6 +203,7 @@ var cuClosePanel = function () {
 				_cu.replaceRow(handle, type);
 				_cu.updateStatsBar();
 				notify('Re-enabled: ' + handle, 'success');
+				emitRuleChange('enable');
 			}).catch(function(e) {
 				btnPage.disabled   = false;
 				btnGlobal.disabled = false;
@@ -424,6 +436,7 @@ var cuClosePanel = function () {
 			Promise.all(promises).then(function () {
 				_cu.renderAssets();
 				notify('Disabled ' + groupAssets.length + ' assets in ' + label, 'success');
+				emitRuleChange('bulk-disable');
 			});
 		},
 
@@ -451,6 +464,7 @@ var cuClosePanel = function () {
 			Promise.all(promises).then(function () {
 				_cu.renderAssets();
 				notify('Re-enabled ' + groupAssets.length + ' assets in ' + label, 'success');
+				emitRuleChange('bulk-enable');
 			});
 		},
 
@@ -548,6 +562,7 @@ var cuClosePanel = function () {
 						Promise.all(promises).then(function () {
 							_cu.renderAssets();
 							notify('Re-enabled ' + all.length + ' assets', 'success');
+							emitRuleChange('bulk-enable');
 						});
 					});
 				}
@@ -776,6 +791,7 @@ var cuClosePanel = function () {
 					_cu.closeDialog(false);
 					_cu.replaceRow(handle, type);
 					notify('Rule saved: ' + handle, 'success');
+					emitRuleChange('create');
 				});
 			})
 			.catch(function (e) {
