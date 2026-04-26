@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.5] — 2026-04-26
+
+Hotfix. PHP-logic only — no schema changes, no deactivate/activate required.
+
+### Fixed
+- **Bulk rule deletion silently leaves 3rd-party page cache stale.** `RuleRepository::delete_rules( array $ids )` and `RuleRepository::delete_all_rules()` previously called only `invalidate_caches()` (WP object cache), so cached HTML kept serving stripped inline localizes from cache plugins (WP Rocket / LiteSpeed / SG Optimizer / FlyingPress / Hummingbird / Autoptimize / Breeze / Nginx Helper / Cloudflare) until the cache TTL expired or the plugin was deactivated/reactivated — which only worked because WP's plugin-lifecycle hooks happen to trigger optimizer auto-purges as a side effect. Both bulk paths now call `CachePurger::purge_all()` after a successful delete (gated on `$deleted > 0`).
+- **Group enable/disable toggle leaves 3rd-party page cache stale.** `RuleRepository::update_group()` now calls `CachePurger::purge_all()` when the `enabled` flag flips, on top of the existing `activate_group_items` / `deactivate_group_items` calls. Editing `name` / `description` does not change which rules apply at runtime, so those edits do not trigger a purge.
+- **Group deletion (single + bulk) leaves 3rd-party page cache stale.** `RuleRepository::delete_group( int $id )` and `RuleRepository::delete_all_groups()` now call `CachePurger::purge_all()`. Single-group delete is gated on `$result`; the all-groups path always purges because the caller already exited early when zero groups exist.
+
+### Internal
+- `phpcs:enable` scope corrected in `delete_all_groups()` so the `WordPress.DB.DirectDatabaseQuery.*` suppression doesn't leak past the intended block — picked up via wp-compliance Rule 20 placement-mechanics audit.
+- Single-rule paths (`delete_rule`, `delete_active_rules_by_scope`) already called `CachePurger::purge_for_rule()` per affected URL and are unchanged.
+- Purge is fired from top-level user-triggered methods only — not from `activate_group_items` / `deactivate_group_items` — to avoid double-purging when `delete_group` calls those helpers during teardown.
+
+---
+
 ## [1.4.4] — 2026-04-18
 
 ### Added

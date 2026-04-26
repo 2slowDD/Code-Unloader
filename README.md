@@ -5,7 +5,7 @@
   <img alt="Claude Code Skill" src="https://img.shields.io/badge/Claude%20Code-Skill-5A32A3?style=for-the-badge">
   <img alt="Codex Skill" src="https://img.shields.io/badge/Codex-Skill-111111?style=for-the-badge">
   <a href="https://www.gnu.org/licenses/gpl-2.0.html"><img alt="License: GPL-2.0-or-later" src="https://img.shields.io/badge/License-GPL--2.0--or--later-green?style=for-the-badge"></a>
-  <img alt="Version 1.4.4" src="https://img.shields.io/badge/Version-1.4.4-blue?style=for-the-badge">
+  <img alt="Version 1.4.5" src="https://img.shields.io/badge/Version-1.4.5-blue?style=for-the-badge">
 </p>
 
 <p align="center">
