@@ -522,6 +522,17 @@ class AdminScreen {
 			echo '<div class="cu-group-card' . esc_attr( $disabled_class ) . '" data-group-id="' . esc_attr( $group->id ) . '">';
 			echo '<div class="cu-group-card-header">';
 			echo '<strong>' . esc_html( $group->name ) . '</strong>';
+			if ( ! empty( $group->created_at ) ) {
+				$created_date = get_date_from_gmt( $group->created_at, 'F j Y' );
+				// Skip the badge when the group name already encodes the same date
+				// (e.g. auto-created "Previously active rules April 23 2026"
+				// archive groups pushed by AI Assets Scanner) — avoids duplication.
+				if ( false === strpos( $group->name, $created_date ) ) {
+					/* translators: %s: human-readable creation date, e.g. "April 23 2026" */
+					$created_label = sprintf( __( 'Created, %s', 'code-unloader' ), $created_date );
+					echo '<span class="cu-group-created" style="font-size:11px;opacity:0.6;margin-left:8px;">' . esc_html( $created_label ) . '</span>';
+				}
+			}
 			/* translators: %d: number of rules in a group */
 			echo '<span class="cu-group-rule-count">' . sprintf( esc_html__( '%d rules', 'code-unloader' ), (int) $group->rule_count ) . '</span>';
 			echo '</div>';

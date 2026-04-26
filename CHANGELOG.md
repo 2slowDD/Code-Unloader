@@ -12,6 +12,9 @@ Hotfix. PHP-logic only — no schema changes, no deactivate/activate required.
 ### Changed
 - **Enabled groups float to the top of the Groups tab.** `RuleRepository::get_all_groups()` now sorts by `g.enabled DESC, g.name` so the active set is always visible at a glance — previously buried behind alphabetical-by-name ordering when many disabled groups (e.g. dated "Previously active rules" archives) were present. Alphabetical order is preserved within each enabled/disabled bucket. Single SQL `ORDER BY` change; client `forEach` in [`admin.js:149`](assets/js/admin.js#L149) renders in received order, no JS changes needed.
 
+### Added
+- **Group cards display the creation date.** `render_groups_tab()` now shows a small, dimmed "Created, April 23 2026" badge beside the group title, sourced from `cu_groups.created_at` via `get_date_from_gmt()` so it's rendered in the site's timezone. The badge is suppressed when the group name already contains the same formatted date (avoids duplication on auto-created "Previously active rules April 23 2026" archives pushed by AI Assets Scanner).
+
 ### Internal
 - `phpcs:enable` scope corrected in `delete_all_groups()` so the `WordPress.DB.DirectDatabaseQuery.*` suppression doesn't leak past the intended block — picked up via wp-compliance Rule 20 placement-mechanics audit.
 - Single-rule paths (`delete_rule`, `delete_active_rules_by_scope`) already called `CachePurger::purge_for_rule()` per affected URL and are unchanged.

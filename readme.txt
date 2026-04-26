@@ -90,6 +90,7 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 * Fixed: enabling/disabling a group via the Groups tab now purges 3rd-party page cache. Same root cause as above; toggling a group's enabled flag changes which rules apply at runtime.
 * Fixed: deleting a single group (`DELETE /groups/{id}`) and deleting all groups now purges 3rd-party page cache.
 * Changed: enabled groups now float to the top of the Groups tab. Active groups are visible at a glance; alphabetical order is preserved within each enabled/disabled bucket.
+* Added: group cards now show the creation date next to the title (e.g. "Created, April 23 2026" in a small dimmed badge). Suppressed when the group name already contains the same date.
 * Internal: `phpcs:enable` scope corrected in `delete_all_groups()` so the `WordPress.DB.DirectDatabaseQuery.*` suppression doesn't leak past the intended block.
 
 = 1.4.4 =
