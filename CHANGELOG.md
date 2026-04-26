@@ -9,6 +9,9 @@ Hotfix. PHP-logic only — no schema changes, no deactivate/activate required.
 - **Group enable/disable toggle leaves 3rd-party page cache stale.** `RuleRepository::update_group()` now calls `CachePurger::purge_all()` when the `enabled` flag flips, on top of the existing `activate_group_items` / `deactivate_group_items` calls. Editing `name` / `description` does not change which rules apply at runtime, so those edits do not trigger a purge.
 - **Group deletion (single + bulk) leaves 3rd-party page cache stale.** `RuleRepository::delete_group( int $id )` and `RuleRepository::delete_all_groups()` now call `CachePurger::purge_all()`. Single-group delete is gated on `$result`; the all-groups path always purges because the caller already exited early when zero groups exist.
 
+### Changed
+- **Enabled groups float to the top of the Groups tab.** `RuleRepository::get_all_groups()` now sorts by `g.enabled DESC, g.name` so the active set is always visible at a glance — previously buried behind alphabetical-by-name ordering when many disabled groups (e.g. dated "Previously active rules" archives) were present. Alphabetical order is preserved within each enabled/disabled bucket. Single SQL `ORDER BY` change; client `forEach` in [`admin.js:149`](assets/js/admin.js#L149) renders in received order, no JS changes needed.
+
 ### Internal
 - `phpcs:enable` scope corrected in `delete_all_groups()` so the `WordPress.DB.DirectDatabaseQuery.*` suppression doesn't leak past the intended block — picked up via wp-compliance Rule 20 placement-mechanics audit.
 - Single-rule paths (`delete_rule`, `delete_active_rules_by_scope`) already called `CachePurger::purge_for_rule()` per affected URL and are unchanged.

@@ -537,11 +537,13 @@ class RuleRepository {
 		}
 		global $wpdb;
 		$results = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			// Enabled groups float to the top so the active set is visible at a glance,
+			// then alphabetical within each enabled/disabled bucket.
 			"SELECT g.*, COUNT(gi.id) AS rule_count
 			 FROM {$wpdb->prefix}cu_groups g
 			 LEFT JOIN {$wpdb->prefix}cu_group_items gi ON gi.group_id = g.id
 			 GROUP BY g.id
-			 ORDER BY g.name"
+			 ORDER BY g.enabled DESC, g.name"
 		) ?: [];
 		wp_cache_set( 'cdunloader_all_groups', $results );
 		return $results;
