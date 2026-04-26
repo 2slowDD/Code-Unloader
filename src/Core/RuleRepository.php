@@ -214,6 +214,15 @@ class RuleRepository {
 		}
 		self::$rules_cache = null;
 		self::invalidate_caches();
+		// Bulk delete affects potentially many URLs — purge 3rd-party page cache so
+		// stale HTML (with already-stripped inline localizes) doesn't keep serving.
+		// Without this, console errors like missing wp_localize_script globals can
+		// persist after rule deletion until the cache plugin's TTL expires or the
+		// CU plugin is deactivated/reactivated (which fires WP plugin-lifecycle
+		// hooks that optimizers auto-purge on).
+		if ( $deleted > 0 ) {
+			CachePurger::purge_all();
+		}
 		return $deleted;
 	}
 
@@ -224,6 +233,10 @@ class RuleRepository {
 		$deleted = (int) $wpdb->query( "DELETE FROM {$wpdb->prefix}cu_rules" );
 		self::$rules_cache = null;
 		self::invalidate_caches();
+		// Sitewide change — purge 3rd-party page cache (see delete_rules() comment).
+		if ( $deleted > 0 ) {
+			CachePurger::purge_all();
+		}
 		return $deleted;
 	}
 
@@ -582,6 +595,12 @@ class RuleRepository {
 			}
 			$group = self::get_group( $id );
 			self::log_action( $action, get_current_user_id(), null, $group );
+			// Toggling a group changes which rules apply at runtime — purge
+			// 3rd-party page cache so stale HTML doesn't keep serving (e.g.
+			// inline localizes that were stripped while the group was active
+			// would still be missing in cached pages until cache TTL expires
+			// or the plugin is deactivated/reactivated).
+			CachePurger::purge_all();
 		}
 
 		return $result !== false;
@@ -593,6 +612,10 @@ class RuleRepository {
 		self::delete_group_items( $id );
 		$result = (bool) $wpdb->delete( "{$wpdb->prefix}cu_groups", [ 'id' => $id ], [ '%d' ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		self::invalidate_caches();
+		if ( $result ) {
+			// Group rules went inactive — purge 3rd-party page cache.
+			CachePurger::purge_all();
+		}
 		return $result;
 	}
 
@@ -625,6 +648,8 @@ class RuleRepository {
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		self::invalidate_caches();
+		// Wiping every group is a sitewide change — purge 3rd-party page cache.
+		CachePurger::purge_all();
 		return $count;
 	}
 
