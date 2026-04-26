@@ -4,7 +4,7 @@ Tags: performance, assets, scripts, styles, dequeue
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.4.4
+Stable tag: 1.4.5
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,12 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 6. Admin screen — Settings tab with kill switch
 
 == Changelog ==
+
+= 1.4.5 =
+* Fixed: bulk rule deletion ("Delete All Active Rules" / multi-select bulk delete) now purges 3rd-party page cache (WP Rocket, LiteSpeed, SG Optimizer, FlyingPress, Hummingbird, Autoptimize, Breeze, Nginx Helper, Cloudflare, etc.). Previously these paths only cleared the WP object cache, so cached HTML kept serving until the cache TTL expired or the plugin was deactivated/reactivated — sometimes leaving stale console errors from already-stripped inline localizes.
+* Fixed: enabling/disabling a group via the Groups tab now purges 3rd-party page cache. Same root cause as above; toggling a group's enabled flag changes which rules apply at runtime.
+* Fixed: deleting a single group (`DELETE /groups/{id}`) and deleting all groups now purges 3rd-party page cache.
+* Internal: `phpcs:enable` scope corrected in `delete_all_groups()` so the `WordPress.DB.DirectDatabaseQuery.*` suppression doesn't leak past the intended block.
 
 = 1.4.4 =
 * Added: "Delete All Groups" button on the Groups tab. Wipes all groups and their snapshots. Active rules survive and become ungrouped.
