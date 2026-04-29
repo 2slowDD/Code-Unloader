@@ -203,6 +203,48 @@ class FrontendPanel {
 					'size'         => self::get_asset_size( (string) $obj->src ),
 				];
 			}
+
+			// ----------------------------------------------------------------
+			// Snapshot merge — Bug 1 fix (1.4.6).
+			// Surface assets that the user is managing via cu_group_items
+			// snapshots (enabled groups, URL pattern matches) even when no
+			// active rule exists for them on this URL. Without this, deleting
+			// a rule via the panel "enable" toggle would make the row vanish
+			// on next refresh whenever the source plugin enqueues at a higher
+			// priority than 999 or via wp_footer.
+			// ----------------------------------------------------------------
+			$snapshots = RuleRepository::get_group_item_snapshots_for_url( $url );
+			foreach ( $snapshots as $snap ) {
+				$key = $snap->asset_handle . '|' . $snap->asset_type;
+				if ( in_array( $key, $seen_handles, true ) ) {
+					continue; // Already in assets[] from queue scan or was_dequeued.
+				}
+
+				$obj = null;
+				if ( $snap->asset_type === 'js' ) {
+					$obj = $wp_scripts->registered[ $snap->asset_handle ] ?? null;
+				} elseif ( $snap->asset_type === 'css' ) {
+					$obj = $wp_styles->registered[ $snap->asset_handle ] ?? null;
+				}
+
+				// Prefer live AssetDetector when handle is registered; fall back
+				// to the snapshot's stored source_label for deactivated plugins.
+				if ( $obj && $obj->src ) {
+					$source_label = AssetDetector::detect_source( (string) $obj->src );
+				} else {
+					$source_label = (string) ( $snap->source_label ?: 'Unknown / External' );
+				}
+
+				$seen_handles[] = $key;
+				$assets[]       = [
+					'handle'       => $snap->asset_handle,
+					'type'         => $snap->asset_type,
+					'src'          => $obj ? (string) $obj->src : '',
+					'source_label' => $source_label,
+					'deps'         => $obj ? $obj->deps : [],
+					'size'         => $obj ? self::get_asset_size( (string) $obj->src ) : 0,
+				];
+			}
 		} catch ( \Throwable $e ) {
 			// Log the error for debugging; panel will show assets without rule matching.
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {

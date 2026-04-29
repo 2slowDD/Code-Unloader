@@ -649,6 +649,7 @@ class RuleRepository {
 		$wpdb->query( "DELETE FROM {$wpdb->prefix}cu_groups" );
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
+		self::bump_snapshots_version();
 		self::invalidate_caches();
 		// Wiping every group is a sitewide change — purge 3rd-party page cache.
 		CachePurger::purge_all();
@@ -680,6 +681,53 @@ class RuleRepository {
 		) ?: [];
 		wp_cache_set( $cache_key, $results );
 		return $results;
+	}
+
+	/**
+	 * Return snapshot rows from cu_group_items whose group is enabled
+	 * AND whose url_pattern matches the given URL.
+	 *
+	 * Used by the frontend panel to keep user-managed assets visible on
+	 * pages where their URL pattern matches, even when no active rule
+	 * currently dequeues them. Mirrors how DequeueEngine::process_rules
+	 * filters: SQL handles the enabled-group join + ordering, PHP handles
+	 * url_pattern matching (since match_type can be regex/wildcard).
+	 *
+	 * Deterministic two-group tie-break: group_id ASC, id ASC — so when a
+	 * snapshot exists in two enabled groups for the same URL, the lower-
+	 * numbered (older) group wins reproducibly.
+	 *
+	 * @param string $url Already-normalized current URL (caller normalizes).
+	 * @return object[]   Snapshot rows with cu_group_items columns.
+	 */
+	public static function get_group_item_snapshots_for_url( string $url ): array {
+		$version   = (int) wp_cache_get( 'cdunloader_snapshots_version' );
+		$cache_key = 'cdunloader_snapshots_for_url_' . md5( $url ) . '_v' . $version;
+		$cached    = wp_cache_get( $cache_key );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+
+		global $wpdb;
+		// INNER JOIN cu_groups on enabled = 1 — disabled-group snapshots are inert.
+		// No FK exists between cu_group_items.group_id and cu_groups.id, so the
+		// INNER JOIN also drops orphaned snapshots whose parent group was deleted
+		// outside the normal delete_group path.
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			"SELECT gi.*
+			 FROM {$wpdb->prefix}cu_group_items gi
+			 INNER JOIN {$wpdb->prefix}cu_groups g
+			         ON g.id = gi.group_id AND g.enabled = 1
+			 ORDER BY gi.group_id ASC, gi.id ASC"
+		) ?: [];
+
+		$matched = array_values( array_filter(
+			$rows,
+			static fn( $snap ) => PatternMatcher::match( $snap, $url )
+		) );
+
+		wp_cache_set( $cache_key, $matched );
+		return $matched;
 	}
 
 	/**
@@ -808,6 +856,7 @@ class RuleRepository {
 		}
 		$new_id = (int) $wpdb->insert_id;
 		wp_cache_delete( "cdunloader_group_items_{$group_id}" );
+		self::bump_snapshots_version();
 		return $new_id;
 	}
 
@@ -826,6 +875,7 @@ class RuleRepository {
 			)
 		);
 		wp_cache_delete( "cdunloader_group_items_{$group_id}" );
+		self::bump_snapshots_version();
 		return $deleted;
 	}
 
@@ -974,6 +1024,12 @@ class RuleRepository {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}cu_log WHERE 1 = %d", 1 ) );
+	}
+
+	/** Bug 1 (1.4.6): bump the snapshot cache version so per-URL caches are bypassed on next read. */
+	private static function bump_snapshots_version(): void {
+		$current = (int) wp_cache_get( 'cdunloader_snapshots_version' );
+		wp_cache_set( 'cdunloader_snapshots_version', $current + 1 );
 	}
 
 	/** Flush all object caches used by this repository. */
