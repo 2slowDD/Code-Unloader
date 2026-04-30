@@ -576,7 +576,11 @@ class FrontendPanel {
 		if ( empty( self::$rewritten_urls ) ) {
 			return;
 		}
-		// wp_json_encode is XSS-safe for inline-script context.
+		// wp_json_encode escapes "/" as "\/" by default — that's what makes inline-script
+		// emission safe here. Any URL containing "</script>" becomes "<\/script>" in the
+		// JSON string, which the HTML parser's RAWTEXT tokenizer does NOT match as a
+		// script-closing tag. Do NOT add JSON_UNESCAPED_SLASHES — that flag would
+		// reintroduce the </script> XSS vector.
 		$json = wp_json_encode( self::$rewritten_urls );
 		if ( false === $json ) {
 			return;
@@ -585,7 +589,7 @@ class FrontendPanel {
 		<script id="cu-rewritten-urls">
 		(function () {
 			if (!window.CDUNLOADER_DATA || !Array.isArray(window.CDUNLOADER_DATA.assets)) return;
-			var rewrites = <?php echo $json; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON-encoded by wp_json_encode, safe in inline-script context. ?>;
+			var rewrites = <?php echo $json; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode default-escapes "/" → "\/", neutralizing </script> XSS in inline-script context. See note above. ?>;
 			window.CDUNLOADER_DATA.assets.forEach(function (a) {
 				var key = a.handle + '|' + a.type;
 				if (rewrites[key] && rewrites[key] !== a.src) {

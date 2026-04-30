@@ -353,12 +353,7 @@ a.cu-icon-btn--link {
 }
 
 .cu-asset-src--rewritten {
-	opacity: 0.65;
 	font-style: italic;
-}
-
-[data-theme="dark"] .cu-asset-src--rewritten {
-	opacity: 0.55;
 }
 
 .cu-asset-badges { margin-top: 4px; }
