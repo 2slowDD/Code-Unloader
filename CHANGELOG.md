@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.4.6] — 2026-04-29
+
+Hotfix bundle. PHP-logic + JS only — no schema changes, no deactivate/activate required.
+
+### Fixed
+- **Re-enabling a grouped rule from the panel made the asset row vanish on refresh.** Panel built `assets[]` from `$wp_scripts->queue` at `wp_enqueue_scripts:999` plus a `was_dequeued` fallback that only fired when an active rule still matched. Source plugins enqueueing at a higher priority than 999 (or via `wp_footer`) were missed by the queue scan and lost the fallback after rule delete. Fix: merge `cu_group_items` snapshots from enabled groups whose URL pattern matches the current URL into `assets[]` in `FrontendPanel::enqueue_panel_assets()`. Snapshot is the user's source-of-truth for "I manage this asset on this URL" and survives rule deletion. New `RuleRepository::get_group_item_snapshots_for_url()` encapsulates the join + URL match + versioned-cache; mutating paths (`create_group_item`, `delete_group_items`, `delete_all_groups`, plus `update_group` on enable-toggle) bump a shared snapshots-version counter to bypass per-URL caches on next read.
+- **AI Assets Scanner push left the open CU admin Rules tab stale.** Scanner writes rules server-side via `RuleRepository::create_rule()`, which never reaches the browser. CU's admin Rules tab has been listening for `cu.rule.changed` on `BroadcastChannel('code-unloader')` since 1.4.4, but Scanner never produced the event. Fix: Scanner's `cu-btn-push` success branch now posts `{ type: 'cu.rule.changed', source: 'scanner', action: 'bulk-create' }` on the same channel, with a `localStorage` write/remove fallback for browsers without `BroadcastChannel`. Existing `wireCrossTabSync` listener in `assets/js/admin.js` debounces (250ms), refetches the current admin URL, and replaces `#the-list`, `#cu-total-rules-count`, and `.tablenav` in place. Cross-plugin event (Scanner → CU); CU side unchanged.
+- **Panel filename ≠ network-tab filename when an optimizer rewrites the src.** Panel's filename derived from `$wp_scripts->registered[$handle]->src` (developer-registered URL); browser sees the URL after `script_loader_src` / `style_loader_src` filters run (Perfmatters, WP Rocket page-cache mode, hash-versioning, CDN URL-rewriters). Fix: register both filters at `PHP_INT_MAX` in `FrontendPanel::init()` — only when `?wpcu` is present, mirroring the existing head-buffer-scan gating — capture each post-rewrite URL into `self::$rewritten_urls`, then emit a tiny inline-script patch at `wp_footer:PHP_INT_MAX` (after `wp_print_footer_scripts:20` has flushed every footer script tag through the filter) that mutates `window.CDUNLOADER_DATA.assets[i].rewritten_src` on the live array reference. `panel.js` `assetRow()` renders a "→ \<filename\>" line under the registered filename when they differ, italic via the new `.cu-asset-src--rewritten` class (no opacity reduction — keeps WCAG AA contrast). Out of scope: HTML-output-buffering optimizers (Autoptimize, WP-Optimize combine, FlyingPress static-bundling) that rewrite at `template_redirect` time without hooking `script_loader_src` — separate feature, would need an output-buffer scan.
+
+### Changed
+- **Panel search filter now covers every visible identifier on a row.** Previously only `handle` and full `src`. Now matches `handle`, full `src`, full `rewritten_src`, `source_label`, and extracted filenames from both `src` and `rewritten_src` — joined into a single per-row haystack, lower-cased once per query. Placeholder text updated from "Filter by handle or filename…" to "Filter by handle, filename, source, or URL…" so the new coverage is discoverable.
+
+### Internal
+- Consolidated `FrontendPanel.php:247` panel-version HTML comment from `<!-- Code Unloader Panel v{VERSION} | panel.js v9 | panel.css v9 -->` to `<!-- Code Unloader Panel v{VERSION} -->`. The hardcoded `v9` literals had drifted from the actual `panel.js v10` JSDoc header since 1.4.5. `CDUNLOADER_VERSION` is sufficient build identifier; per-file change tracking continues to live in per-file headers.
+- `panel.js` JSDoc header bumped 10 → 11 with v11 changelog block listing the Bug 1 / Bug 3 / search-coverage line items.
+- `CDUNLOADER_VERSION` 1.4.5 → 1.4.6. `CDUNLOADER_DB_VERSION` unchanged at 1.5.2 — no schema change.
+- Filter priorities: both `script_loader_src` / `style_loader_src` AND the `wp_footer` emit action use `PHP_INT_MAX` for symmetry. A plugin scheduling its own callbacks at the integer cap would still beat us — defensible, accepted.
+- Snapshot-merge fallback handles deactivated-plugin handles: when `$wp_scripts->registered[$handle]` is null, the row is still added with empty `src`/`deps` and `source_label` falls back to the snapshot's stored `source_label` column. Prevents a deactivated plugin's snapshots from collapsing into "Unknown / External".
+- Snapshot two-group tie-break: `INNER JOIN ... ORDER BY gi.group_id ASC, gi.id ASC`. Lowest-numbered (oldest) group wins reproducibly.
+- XSS safety in `emit_rewritten_urls()` documented inline: `wp_json_encode` default-escapes `/` as `\/`, neutralizing `</script>` injection in URL values. Comment warns against adding `JSON_UNESCAPED_SLASHES` (which would silently reintroduce the vector).
+
+---
+
 ## [1.4.5] — 2026-04-26
 
 Hotfix. PHP-logic only — no schema changes, no deactivate/activate required.

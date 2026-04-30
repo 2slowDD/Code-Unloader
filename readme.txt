@@ -4,7 +4,7 @@ Tags: performance, assets, scripts, styles, dequeue
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.4.5
+Stable tag: 1.4.6
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,14 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 6. Admin screen — Settings tab with kill switch
 
 == Changelog ==
+
+= 1.4.6 =
+* Fixed: re-enabling a grouped rule from the frontend panel no longer hides the asset row after a page refresh. The panel now also surfaces assets tracked via group snapshots (cu_group_items) on URLs whose pattern matches the snapshot, so user-managed assets stay visible even after their active rule is deleted. Affected setups where the source plugin enqueues at a higher priority than the panel scan or via wp_footer.
+* Fixed: the open Code Unloader admin Rules tab now refreshes automatically after AI Assets Scanner pushes rules to CU. Previously the table and total count stayed stale until manual reload or tab switch. Same-browser only (BroadcastChannel + storage-event fallback) — required a one-line emit on the Scanner side, no CU-side plumbing changes (the listener has been there since 1.4.4).
+* Fixed: the panel now shows the actually-loaded asset URL when an optimizer rewrites the src via script_loader_src / style_loader_src (Perfmatters, WP Rocket page-cache mode, hash-versioning plugins, CDN URL-rewriters). Rows whose registered src differs from the rewritten URL get a small italic "→ <filename>" line under the registered filename. HTML-output-buffering optimizers (Autoptimize and friends) are not yet covered — separate feature.
+* Changed: search filter on the panel now matches across handle, full URL, rewritten URL, source plugin name, and extracted filenames. Placeholder text updated to "Filter by handle, filename, source, or URL…" so the new behavior is discoverable.
+* Internal: consolidated FrontendPanel.php:247 panel-version HTML comment to a single CDUNLOADER_VERSION echo — removed stale "panel.js v9 | panel.css v9" hardcoded literals that had drifted from the actual panel.js v10 header. Future per-file version trails should live in the per-file headers, not the HTML comment.
+* Internal: new RuleRepository::get_group_item_snapshots_for_url() method with versioned object cache (cdunloader_snapshots_version counter, bumped from create_group_item / delete_group_items / delete_all_groups / update_group when enabled toggles). No DB schema change.
 
 = 1.4.5 =
 * Fixed: bulk rule deletion ("Delete All Active Rules" / multi-select bulk delete) now purges 3rd-party page cache (WP Rocket, LiteSpeed, SG Optimizer, FlyingPress, Hummingbird, Autoptimize, Breeze, Nginx Helper, Cloudflare, etc.). Previously these paths only cleared the WP object cache, so cached HTML kept serving until the cache TTL expired or the plugin was deactivated/reactivated — sometimes leaving stale console errors from already-stripped inline localizes.
