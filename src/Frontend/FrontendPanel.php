@@ -242,7 +242,7 @@ class FrontendPanel {
 					'src'          => $obj ? (string) $obj->src : '',
 					'source_label' => $source_label,
 					'deps'         => $obj ? $obj->deps : [],
-					'size'         => $obj ? self::get_asset_size( (string) $obj->src ) : 0,
+					'size'         => ( $obj && $obj->src ) ? self::get_asset_size( (string) $obj->src ) : 0,
 				];
 			}
 		} catch ( \Throwable $e ) {

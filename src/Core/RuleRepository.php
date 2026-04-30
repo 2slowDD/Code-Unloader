@@ -603,6 +603,7 @@ class RuleRepository {
 			// would still be missing in cached pages until cache TTL expires
 			// or the plugin is deactivated/reactivated).
 			CachePurger::purge_all();
+			self::bump_snapshots_version();
 		}
 
 		return $result !== false;
