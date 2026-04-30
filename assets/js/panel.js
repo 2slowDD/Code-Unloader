@@ -1,6 +1,13 @@
 /**
  * Code Unloader — Frontend Panel
- * panel.js v10
+ * panel.js v11
+ *
+ * v11 changes (CU 1.4.6):
+ * - Bug 1: snapshot-backed assets stay visible after rule delete (PHP-side merge).
+ * - Bug 3: render rewritten asset URL when an optimizer (Perfmatters etc.)
+ *   rewrites it via script_loader_src/style_loader_src.
+ * - Bug 3: search filter now matches handle + src + rewritten_src + source_label
+ *   + extracted filenames from src and rewritten_src.
  *
  * v10 changes:
  * - Live sync: rule_map and groups re-fetched from REST on every panel open
@@ -53,7 +60,7 @@ var cuClosePanel = function () {
 (function () {
 	'use strict';
 	/* eslint-disable no-console */
-	console.log('[Code Unloader] panel.js v10 loaded');
+	console.log('[Code Unloader] panel.js v11 loaded');
 
 	var D       = window.CDUNLOADER_DATA || {};
 	var API     = D.api_base     || '';
@@ -227,6 +234,27 @@ var cuClosePanel = function () {
 	}
 
 	/* -----------------------------------------------------------------------
+	   Search — comprehensive coverage across every visible identifier on a row.
+	   Bug 3 (1.4.6). Matches handle, src (full URL), rewritten_src (full URL),
+	   source_label, AND the basename extracted from src and rewritten_src so
+	   filename-based queries hit even when handle and filename diverge.
+	   ----------------------------------------------------------------------- */
+	function matchesSearch(a, q) {
+		if (!q) return true;
+		var srcName       = a.src           ? a.src.split('/').pop().split('?')[0]           : '';
+		var rewrittenName = a.rewritten_src ? a.rewritten_src.split('/').pop().split('?')[0] : '';
+		var hay = [
+			a.handle,
+			a.src,
+			a.rewritten_src,
+			a.source_label,
+			srcName,
+			rewrittenName,
+		].filter(Boolean).join(' ').toLowerCase();
+		return hay.indexOf(q) !== -1;
+	}
+
+	/* -----------------------------------------------------------------------
 	   _cu — render + logic
 	   ----------------------------------------------------------------------- */
 	var _cu = window._cu = {
@@ -241,10 +269,7 @@ var cuClosePanel = function () {
 
 			var grouped = {};
 			assets.forEach(function (a) {
-				if (q) {
-					if ((a.handle||'').toLowerCase().indexOf(q) === -1 &&
-					    (a.src   ||'').toLowerCase().indexOf(q) === -1) return;
-				}
+				if (!matchesSearch(a, q)) return;
 				var label = a.source_label || 'Unknown / External';
 				if (!grouped[label]) grouped[label] = [];
 				grouped[label].push(a);
@@ -325,6 +350,17 @@ var cuClosePanel = function () {
 			var filename = '';
 			if (a.src) filename = a.src.split('/').pop().split('?')[0];
 
+			// Bug 3 (1.4.6): if an optimizer rewrote the src to a different filename,
+			// surface it under the registered filename. Title attr shows the full URL.
+			var rewrittenLine = '';
+			if (a.rewritten_src) {
+				var rewrittenName = a.rewritten_src.split('/').pop().split('?')[0];
+				if (rewrittenName && rewrittenName !== filename) {
+					rewrittenLine = '<div class="cu-asset-src cu-asset-src--rewritten" title="'
+						+ esc(a.rewritten_src) + '">→ ' + esc(rewrittenName) + '</div>';
+				}
+			}
+
 			var noteIcon = (rule && rule.label)
 				? ' <span class="cu-note" title="' + esc(rule.label) + '">📝</span>' : '';
 
@@ -336,6 +372,7 @@ var cuClosePanel = function () {
 				'<div class="cu-asset-info">' +
 					'<div class="cu-asset-handle">' + esc(a.handle) + noteIcon + '</div>' +
 					(filename ? '<div class="cu-asset-src">' + esc(filename) + '</div>' : '') +
+					rewrittenLine +
 					'<div class="cu-asset-badges">' + badge + '</div>' +
 				'</div>' +
 				(a.size ? '<div class="cu-asset-size">' + formatSize(a.size) + '</div>' : '') +

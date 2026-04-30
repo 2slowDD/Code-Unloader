@@ -17,6 +17,8 @@ use CodeUnloader\Core\{AssetDetector, PatternMatcher, RuleRepository};
 class FrontendPanel {
 
 	private static bool $html_injected = false;
+	/** Map of "handle|type" → post-loader_src URL captured at wp_print_*_scripts time. Bug 3 (1.4.6). */
+	private static array $rewritten_urls = [];
 	private array $panel_data = [];
 	private array $detected_inline_blocks = [];
 
@@ -37,6 +39,14 @@ class FrontendPanel {
 			add_action( 'wp_head', [ $this, 'end_head_scan' ],    999 );
 			add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_panel_assets' ], 999 );
 			add_action( 'wp_footer',          [ $this, 'inject_panel_html' ],    1 );
+			// Bug 3 (1.4.6): capture post-filter URLs from script_loader_src /
+			// style_loader_src at PHP_INT_MAX so we run after every other plugin
+			// (Perfmatters, WP Rocket, hash-versioning, CDN URL-rewriters) has
+			// rewritten the src. emit_rewritten_urls runs after wp_print_footer_scripts
+			// so the captured map is complete for both head and footer assets.
+			add_filter( 'script_loader_src',  [ $this, 'capture_loader_src_js' ],  PHP_INT_MAX, 2 );
+			add_filter( 'style_loader_src',   [ $this, 'capture_loader_src_css' ], PHP_INT_MAX, 2 );
+			add_action( 'wp_footer',          [ $this, 'emit_rewritten_urls' ],   PHP_INT_MAX );
 		}
 	}
 
@@ -286,7 +296,7 @@ class FrontendPanel {
 
 		$is_kill = (bool) get_option( CDUNLOADER_OPTION_KILL );
 		?>
-<!-- Code Unloader Panel v<?php echo esc_html( CDUNLOADER_VERSION ); ?> | panel.js v9 | panel.css v9 -->
+<!-- Code Unloader Panel v<?php echo esc_html( CDUNLOADER_VERSION ); ?> -->
 <div id="cu-panel" inert aria-label="Code Unloader">
 	<div class="cu-panel-header">
 		<div class="cu-panel-header-left">
@@ -312,7 +322,7 @@ class FrontendPanel {
 			<button class="cu-tab cu-tab--active" data-tab="assets">Assets</button>
 			<button class="cu-tab" data-tab="inline">Inline Blocks</button>
 		</div>
-		<input id="cu-search" type="text" class="cu-search" placeholder="Filter by handle or filename…" autocomplete="off">
+		<input id="cu-search" type="text" class="cu-search" placeholder="Filter by handle, filename, source, or URL…" autocomplete="off">
 	</div>
 
 	<div id="cu-first-use-warning" class="cu-first-use-warning" hidden>
@@ -525,6 +535,66 @@ class FrontendPanel {
 			return (int) filesize( $path );
 		}
 		return 0;
+	}
+
+	/**
+	 * Bug 3 (1.4.6): record the post-filter src for a JS handle.
+	 * Runs at PHP_INT_MAX priority — after every other plugin's filter.
+	 *
+	 * @param string $src    The (possibly rewritten) script src URL.
+	 * @param string $handle The script handle being printed.
+	 * @return string The src unchanged — this filter is read-only.
+	 */
+	public function capture_loader_src_js( $src, $handle ) {
+		self::$rewritten_urls[ $handle . '|js' ] = (string) $src;
+		return $src;
+	}
+
+	/**
+	 * Bug 3 (1.4.6): record the post-filter src for a CSS handle.
+	 * Same contract as capture_loader_src_js, for stylesheets.
+	 */
+	public function capture_loader_src_css( $src, $handle ) {
+		self::$rewritten_urls[ $handle . '|css' ] = (string) $src;
+		return $src;
+	}
+
+	/**
+	 * Bug 3 (1.4.6): emit a tiny inline-script patch that mutates
+	 * window.CDUNLOADER_DATA.assets[i].rewritten_src for any handle whose
+	 * captured loader_src differs from the registered $obj->src.
+	 *
+	 * Runs at wp_footer:PHP_INT_MAX — after wp_print_footer_scripts (priority
+	 * 20) has emitted every footer script tag and triggered each loader_src
+	 * filter, so self::$rewritten_urls is complete for both head and footer
+	 * assets. The emitted <script> executes in DOM order before
+	 * DOMContentLoaded fires, so panel.js's renderAssets() (called from the
+	 * DOMContentLoaded handler) sees the patched rewritten_src on every row
+	 * by the time it runs.
+	 */
+	public function emit_rewritten_urls(): void {
+		if ( empty( self::$rewritten_urls ) ) {
+			return;
+		}
+		// wp_json_encode is XSS-safe for inline-script context.
+		$json = wp_json_encode( self::$rewritten_urls );
+		if ( false === $json ) {
+			return;
+		}
+		?>
+		<script id="cu-rewritten-urls">
+		(function () {
+			if (!window.CDUNLOADER_DATA || !Array.isArray(window.CDUNLOADER_DATA.assets)) return;
+			var rewrites = <?php echo $json; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON-encoded by wp_json_encode, safe in inline-script context. ?>;
+			window.CDUNLOADER_DATA.assets.forEach(function (a) {
+				var key = a.handle + '|' + a.type;
+				if (rewrites[key] && rewrites[key] !== a.src) {
+					a.rewritten_src = rewrites[key];
+				}
+			});
+		})();
+		</script>
+		<?php
 	}
 
 }
