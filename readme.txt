@@ -4,7 +4,7 @@ Tags: performance, assets, scripts, styles, dequeue
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.4.6
+Stable tag: 1.4.7
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -85,8 +85,11 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 
 == Changelog ==
 
+= 1.4.7 =
+* Added: clickable URL/Pattern links on the Rules tab. A rule whose match type is "exact" and whose pattern is a full http(s) URL now renders as a link that opens the page in a new tab; wildcard, regex, and relative patterns stay as plain text. Link output is fully escaped.
+* Changed: scanner groups and source labels pushed by AI Assets Scanner are rebranded from "CU Scanner" to "AA Scanner". On upgrade, a one-time database migration (schema 1.5.3) renames existing scanner group names ("CU Scanner — Safe", "CU Scanner — Aggressive", and versioned history) and rule/group-item source labels to their "AA Scanner" equivalents. The migration is idempotent and touches only display columns. Requires AI Assets Scanner 1.4.13 or higher for the new names on future pushes.
+
 = 1.4.6 =
-* Note: the AI Assets Scanner → CU Rules-tab live-refresh requires AI Assets Scanner version 1.2.2 or higher. Older Scanner versions ship the same scanner.js cache-bust version, so browsers keep serving the pre-emit cached copy. CU 1.4.6 with Scanner ≤ 1.2.1 still gets the other two bugfixes, just not the cross-tab refresh.
 * Fixed: re-enabling a grouped rule from the frontend panel no longer hides the asset row after a page refresh. The panel now also surfaces assets tracked via group snapshots (cu_group_items) on URLs whose pattern matches the snapshot, so user-managed assets stay visible even after their active rule is deleted. Affected setups where the source plugin enqueues at a higher priority than the panel scan or via wp_footer.
 * Fixed: the open Code Unloader admin Rules tab now refreshes automatically after AI Assets Scanner pushes rules to CU. Previously the table and total count stayed stale until manual reload or tab switch. Same-browser only (BroadcastChannel + storage-event fallback) — required a one-line emit on the Scanner side, no CU-side plumbing changes (the listener has been there since 1.4.4).
 * Fixed: the panel now shows the actually-loaded asset URL when an optimizer rewrites the src via script_loader_src / style_loader_src (Perfmatters, WP Rocket page-cache mode, hash-versioning plugins, CDN URL-rewriters). Rows whose registered src differs from the rewritten URL get a small italic "→ <filename>" line under the registered filename. HTML-output-buffering optimizers (Autoptimize and friends) are not yet covered — separate feature.
