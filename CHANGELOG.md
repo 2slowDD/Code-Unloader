@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.7 — 2026-05-20
+
+### Added
+
+- **Clickable URL/Pattern links on the Rules tab.** A rule whose match type is `exact` and whose pattern is a full http(s) URL now renders as a link that opens the page in a new tab; wildcard/regex/relative patterns stay as plain code. Output is escaped (`esc_url`/`esc_attr`/`esc_html`).
+
+### Changed
+
+- **DB 1.5.3 migration: rebrand "CU Scanner" → "AA Scanner".** On upgrade, existing scanner group names (`CU Scanner — Safe/Aggressive` + versioned history) and rule/group-item source labels (`CU Scanner`, `CU Scanner Snapshot`) are renamed to their `AA Scanner` equivalents. Idempotent, version-gated, touches only non-indexed display columns. Pairs with AI Assets Scanner ≥ 1.4.13.
+
+---
+
 ## [1.4.6] — 2026-04-29
 
 Hotfix bundle. PHP-logic + JS only — no schema changes, no deactivate/activate required.

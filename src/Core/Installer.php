@@ -262,6 +262,14 @@ class Installer {
 			self::heal_snapshot_key_drift();
 		}
 
+		// 1.5.2 → 1.5.3: rebrand scanner-owned rows "CU Scanner" → "AA Scanner".
+		// Pure data migration on non-indexed display columns — no DDL, no constraint
+		// touched, idempotent (after one run no row matches 'CU Scanner%'). Pairs with
+		// AI Assets Scanner >= 1.4.13, which emits the new names on future pushes.
+		if ( version_compare( $installed, '1.5.3', '<' ) ) {
+			self::rebrand_cu_scanner_to_aa_scanner();
+		}
+
 		self::create_tables();
 		update_option( CDUNLOADER_OPTION_DBVER, CDUNLOADER_DB_VERSION );
 	}
@@ -507,6 +515,51 @@ class Installer {
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
 
 		delete_transient( 'cdunloader_snapshot_key_heal_blocked' );
+	}
+
+	/**
+	 * One-time rebrand of scanner-owned rows: "CU Scanner" → "AA Scanner".
+	 *
+	 * Three idempotent UPDATEs on non-indexed display columns:
+	 *   1. cu_groups.name             — scanner groups incl. versioned history.
+	 *   2. cu_rules.source_label      — pushed rules ("CU Scanner").
+	 *   3. cu_group_items.source_label — pushed + snapshot items ("CU Scanner",
+	 *                                    "CU Scanner Snapshot").
+	 *
+	 * The em-dash in the group LIKE is U+2014 — matches what AI Assets Scanner
+	 * emits. The leading-anchored 'CU Scanner — %' pattern excludes user groups
+	 * like "My CU Scanner — Safe". No index covers any of these columns, so no
+	 * UNIQUE constraint can be violated and there is no data-loss path.
+	 */
+	private static function rebrand_cu_scanner_to_aa_scanner(): void {
+		global $wpdb;
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- one-time data migration in a version-gated upgrade block; no caching layer applies.
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$wpdb->prefix}cu_groups SET name = REPLACE(name, %s, %s) WHERE name LIKE %s",
+				'CU Scanner',
+				'AA Scanner',
+				$wpdb->esc_like( 'CU Scanner — ' ) . '%'
+			)
+		);
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$wpdb->prefix}cu_rules SET source_label = REPLACE(source_label, %s, %s) WHERE source_label LIKE %s",
+				'CU Scanner',
+				'AA Scanner',
+				$wpdb->esc_like( 'CU Scanner' ) . '%'
+			)
+		);
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$wpdb->prefix}cu_group_items SET source_label = REPLACE(source_label, %s, %s) WHERE source_label LIKE %s",
+				'CU Scanner',
+				'AA Scanner',
+				$wpdb->esc_like( 'CU Scanner' ) . '%'
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	private static function create_tables(): void {
