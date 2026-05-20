@@ -59,8 +59,27 @@ class RulesListTable extends \WP_List_Table {
 	}
 
 	public function column_url_pattern( $item ): string {
-		$url = esc_html( $item->url_pattern );
-		return '<code title="' . esc_attr( $item->url_pattern ) . '">' . ( strlen( $item->url_pattern ) > 60 ? esc_html( substr( $item->url_pattern, 0, 57 ) ) . '…' : $url ) . '</code>';
+		$full      = (string) $item->url_pattern;
+		$truncated = strlen( $full ) > 60 ? substr( $full, 0, 57 ) . '…' : $full;
+
+		// Link only navigable patterns: an exact match whose value is a full http(s) URL.
+		// Wildcard/regex/relative patterns are not navigable — keep them as plain code.
+		$scheme  = strtolower( (string) wp_parse_url( $full, PHP_URL_SCHEME ) );
+		$host    = (string) wp_parse_url( $full, PHP_URL_HOST );
+		$is_link = 'exact' === $item->match_type
+			&& in_array( $scheme, [ 'http', 'https' ], true )
+			&& '' !== $host;
+
+		if ( $is_link ) {
+			return sprintf(
+				'<a href="%s" target="_blank" rel="noopener noreferrer" title="%s"><code>%s</code></a>',
+				esc_url( $full ),
+				esc_attr( $full ),
+				esc_html( $truncated )
+			);
+		}
+
+		return '<code title="' . esc_attr( $full ) . '">' . esc_html( $truncated ) . '</code>';
 	}
 
 	public function column_match_type( $item ): string {
