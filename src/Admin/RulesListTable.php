@@ -60,7 +60,7 @@ class RulesListTable extends \WP_List_Table {
 
 	public function column_url_pattern( $item ): string {
 		$full      = (string) $item->url_pattern;
-		$truncated = strlen( $full ) > 60 ? substr( $full, 0, 57 ) . '…' : $full;
+		$truncated = strlen( $full ) > 60 ? mb_substr( $full, 0, 57 ) . '…' : $full;
 
 		// Link only navigable patterns: an exact match whose value is a full http(s) URL.
 		// Wildcard/regex/relative patterns are not navigable — keep them as plain code.
