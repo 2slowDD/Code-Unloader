@@ -2,9 +2,9 @@
 Contributors: dalibord
 Tags: performance, assets, scripts, styles, dequeue
 Requires at least: 6.2
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.4.7
+Stable tag: 1.4.8
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,10 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 6. Admin screen — Settings tab with kill switch
 
 == Changelog ==
+
+= 1.4.8 =
+* Added: AI Assets Scanner CTA box to the admin sidebar, placed before the Speed Analyzer CTA and linked to the product page.
+* Changed: tested WordPress compatibility updated to 7.0 and plugin version bumped to 1.4.8.
 
 = 1.4.7 =
 * Added: clickable URL/Pattern links on the Rules tab. A rule whose match type is "exact" and whose pattern is a full http(s) URL now renders as a link that opens the page in a new tab; wildcard, regex, and relative patterns stay as plain text. Link output is fully escaped.

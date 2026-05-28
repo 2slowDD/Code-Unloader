@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.8 - 2026-05-28
+
+### Added
+
+- **AI Assets Scanner CTA in the admin sidebar.** Added a matching product card before Speed Analyzer, using the AAS icon and linking to the WPservice.pro product page.
+
+### Changed
+
+- Bumped plugin version/readme metadata to `1.4.8` and `Tested up to` to `7.0`.
+
+---
+
 ## 1.4.7 — 2026-05-20
 
 ### Added

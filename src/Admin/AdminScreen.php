@@ -401,6 +401,16 @@ class AdminScreen {
 				</a>
 			</div>
 			<div class="cu-sidebar-box cu-sidebar-box--cta">
+				<h3 class="cu-sidebar-heading"><?php esc_html_e( 'AI Assets Scanner', 'code-unloader' ); ?></h3>
+				<p class="cu-sidebar-text"><?php esc_html_e( 'Try the groundbreaking automatic AI Assets Scanner unloading for smarter asset rules with less manual work.', 'code-unloader' ); ?></p>
+				<a href="https://wpservice.pro/our-products/ai-assets-scanner/" target="_blank" rel="noopener noreferrer" class="cu-sidebar-product-link">
+					<img src="<?php echo esc_url( CDUNLOADER_URL . 'assets/img/iconAAS-100x100.png' ); ?>" alt="<?php esc_attr_e( 'AI Assets Scanner', 'code-unloader' ); ?>" class="cu-sidebar-product-icon">
+				</a>
+				<a href="https://wpservice.pro/our-products/ai-assets-scanner/" target="_blank" rel="noopener noreferrer" class="button button-primary cu-sidebar-btn">
+					<?php esc_html_e( 'Get AI Assets Scanner', 'code-unloader' ); ?>
+				</a>
+			</div>
+			<div class="cu-sidebar-box cu-sidebar-box--cta">
 				<h3 class="cu-sidebar-heading"><?php esc_html_e( 'Measure Your Gains', 'code-unloader' ); ?></h3>
 				<p class="cu-sidebar-text"><?php esc_html_e( 'Check by how much Code Unloader improved your pages with our Speed Analyzer plugin.', 'code-unloader' ); ?></p>
 				<a href="https://wordpress.org/plugins/speed-analyzer/" target="_blank" rel="noopener noreferrer" class="cu-sidebar-sa-link">

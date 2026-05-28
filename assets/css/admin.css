@@ -63,12 +63,14 @@
 	background: #f0f7eb;
 	text-align: center;
 }
-.cu-sidebar-sa-link {
+.cu-sidebar-sa-link,
+.cu-sidebar-product-link {
 	display: block;
 	text-align: center;
 	margin: 10px 0 14px;
 }
-.cu-sidebar-sa-icon {
+.cu-sidebar-sa-icon,
+.cu-sidebar-product-icon {
 	width: 100px;
 	height: 100px;
 	border-radius: 16px;
