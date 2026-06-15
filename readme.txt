@@ -4,7 +4,7 @@ Tags: performance, assets, scripts, styles, dequeue
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.4.8
+Stable tag: 1.4.9
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,10 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 6. Admin screen — Settings tab with kill switch
 
 == Changelog ==
+
+= 1.4.9 =
+* Fixed: dependency-only assets such as WooCommerce's `wc-js-cookie` now appear in the frontend panel with "Required by" metadata, so they can be searched and toggled like directly queued assets.
+* Fixed: unloading a dependency-only script or style now removes that handle from parent dependency lists before dequeueing, preventing WordPress from pulling it back in through the parent asset.
 
 = 1.4.8 =
 * Added: AI Assets Scanner CTA box to the admin sidebar, placed before the Speed Analyzer CTA and linked to the product page.

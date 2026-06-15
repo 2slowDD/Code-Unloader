@@ -243,11 +243,13 @@ var cuClosePanel = function () {
 		if (!q) return true;
 		var srcName       = a.src           ? a.src.split('/').pop().split('?')[0]           : '';
 		var rewrittenName = a.rewritten_src ? a.rewritten_src.split('/').pop().split('?')[0] : '';
+		var requiredBy    = Array.isArray(a.required_by) ? a.required_by.join(' ') : '';
 		var hay = [
 			a.handle,
 			a.src,
 			a.rewritten_src,
 			a.source_label,
+			requiredBy,
 			srcName,
 			rewrittenName,
 		].filter(Boolean).join(' ').toLowerCase();
@@ -350,6 +352,12 @@ var cuClosePanel = function () {
 			var filename = '';
 			if (a.src) filename = a.src.split('/').pop().split('?')[0];
 
+			var requiredByLine = '';
+			if (Array.isArray(a.required_by) && a.required_by.length) {
+				requiredByLine = '<div class="cu-asset-src cu-asset-required-by">Required by: '
+					+ esc(a.required_by.join(', ')) + '</div>';
+			}
+
 			// Bug 3 (1.4.6): if an optimizer rewrote the src to a different filename,
 			// surface it under the registered filename. Title attr shows the full URL.
 			var rewrittenLine = '';
@@ -372,6 +380,7 @@ var cuClosePanel = function () {
 				'<div class="cu-asset-info">' +
 					'<div class="cu-asset-handle">' + esc(a.handle) + noteIcon + '</div>' +
 					(filename ? '<div class="cu-asset-src">' + esc(filename) + '</div>' : '') +
+					requiredByLine +
 					rewrittenLine +
 					'<div class="cu-asset-badges">' + badge + '</div>' +
 				'</div>' +

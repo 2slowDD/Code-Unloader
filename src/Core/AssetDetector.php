@@ -18,13 +18,8 @@ class AssetDetector {
 
 		$assets = [];
 
-		foreach ( $wp_scripts->queue as $handle ) {
-			$assets[] = self::build_asset( $handle, 'js', $wp_scripts );
-		}
-
-		foreach ( $wp_styles->queue as $handle ) {
-			$assets[] = self::build_asset( $handle, 'css', $wp_styles );
-		}
+		self::append_dependency_tree_assets( $assets, $wp_scripts, 'js' );
+		self::append_dependency_tree_assets( $assets, $wp_styles, 'css' );
 
 		// Sort by source label then handle
 		usort( $assets, fn( $a, $b ) => strcmp( $a['source_label'], $b['source_label'] ) ?: strcmp( $a['handle'], $b['handle'] ) );
@@ -32,7 +27,59 @@ class AssetDetector {
 		return $assets;
 	}
 
-	private static function build_asset( string $handle, string $type, \WP_Dependencies $deps ): array {
+	private static function append_dependency_tree_assets( array &$assets, \WP_Dependencies $deps, string $type ): void {
+		$seen        = [];
+		$required_by = self::build_required_by_map( $deps );
+
+		foreach ( $deps->queue as $handle ) {
+			$seen[ $handle ] = true;
+			$assets[]        = self::build_asset( $handle, $type, $deps, $required_by[ $handle ] ?? [] );
+		}
+
+		foreach ( $required_by as $handle => $parents ) {
+			if ( isset( $seen[ $handle ] ) || ! isset( $deps->registered[ $handle ] ) ) {
+				continue;
+			}
+			$seen[ $handle ] = true;
+			$assets[]        = self::build_asset( $handle, $type, $deps, $parents );
+		}
+	}
+
+	private static function build_required_by_map( \WP_Dependencies $deps ): array {
+		$required_by = [];
+		$visited     = [];
+
+		foreach ( $deps->queue as $handle ) {
+			self::walk_dependencies( $handle, $deps, $required_by, $visited );
+		}
+
+		foreach ( $required_by as $handle => $parents ) {
+			$required_by[ $handle ] = array_values( array_keys( $parents ) );
+		}
+
+		return $required_by;
+	}
+
+	private static function walk_dependencies( string $handle, \WP_Dependencies $deps, array &$required_by, array &$visited ): void {
+		if ( isset( $visited[ $handle ] ) ) {
+			return;
+		}
+
+		$visited[ $handle ] = true;
+		$obj               = $deps->registered[ $handle ] ?? null;
+		$children          = $obj && is_array( $obj->deps ?? null ) ? $obj->deps : [];
+
+		foreach ( $children as $child ) {
+			if ( ! is_string( $child ) || '' === $child ) {
+				continue;
+			}
+
+			$required_by[ $child ][ $handle ] = true;
+			self::walk_dependencies( $child, $deps, $required_by, $visited );
+		}
+	}
+
+	private static function build_asset( string $handle, string $type, \WP_Dependencies $deps, array $required_by ): array {
 		$obj = $deps->registered[ $handle ] ?? null;
 		$src = $obj ? (string) $obj->src : '';
 
@@ -42,6 +89,7 @@ class AssetDetector {
 			'src'          => $src,
 			'source_label' => self::detect_source( $src ),
 			'deps'         => $obj ? $obj->deps : [],
+			'required_by'  => $required_by,
 		];
 	}
 

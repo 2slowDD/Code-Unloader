@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.9 - 2026-06-15
+
+### Fixed
+
+- **Dependency-only assets now appear in the frontend panel.** Scripts/styles pulled in only as dependencies, such as WooCommerce's `wc-js-cookie`, are expanded from the registered dependency graph and shown with `Required by` metadata so they can be searched and toggled.
+- **Dependency unload rules now prune parent dependency lists.** When a rule targets a dependency-only handle, Code Unloader removes that handle from parent `deps` arrays before dequeueing so WordPress does not pull it back in through the parent asset.
+
+---
+
 ## 1.4.8 - 2026-05-28
 
 ### Added

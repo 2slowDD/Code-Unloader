@@ -133,32 +133,14 @@ class FrontendPanel {
 		// $seen_handles tracks "handle|type" keys to allow a plugin that registers
 		// the same handle name for both JS and CSS (e.g. Enlighter's "enlighterjs")
 		// to have both entries collected without one clobbering the other.
-		$assets       = [];
+		$assets       = AssetDetector::get_enqueued_assets();
 		$seen_handles = [];
-		foreach ( $wp_scripts->queue as $handle ) {
-			$obj              = $wp_scripts->registered[ $handle ] ?? null;
-			$seen_handles[]   = $handle . '|js';
-			$assets[]         = [
-				'handle'       => $handle,
-				'type'         => 'js',
-				'src'          => $obj ? (string) $obj->src : '',
-				'source_label' => $obj ? AssetDetector::detect_source( (string) $obj->src ) : 'Unknown / External',
-				'deps'         => $obj ? $obj->deps : [],
-				'size'         => $obj ? self::get_asset_size( (string) $obj->src ) : 0,
-			];
+		foreach ( $assets as &$asset ) {
+			$seen_handles[]       = $asset['handle'] . '|' . $asset['type'];
+			$asset['size']        = self::get_asset_size( (string) ( $asset['src'] ?? '' ) );
+			$asset['required_by'] = $asset['required_by'] ?? [];
 		}
-		foreach ( $wp_styles->queue as $handle ) {
-			$obj            = $wp_styles->registered[ $handle ] ?? null;
-			$seen_handles[] = $handle . '|css';
-			$assets[]       = [
-				'handle'       => $handle,
-				'type'         => 'css',
-				'src'          => $obj ? (string) $obj->src : '',
-				'source_label' => $obj ? AssetDetector::detect_source( (string) $obj->src ) : 'Unknown / External',
-				'deps'         => $obj ? $obj->deps : [],
-				'size'         => $obj ? self::get_asset_size( (string) $obj->src ) : 0,
-			];
-		}
+		unset( $asset );
 
 		// Compute current URL before the rule loops so we can filter correctly.
 		$url       = '';
@@ -209,6 +191,7 @@ class FrontendPanel {
 					'src'          => (string) $obj->src,
 					'source_label' => AssetDetector::detect_source( (string) $obj->src ),
 					'deps'         => $obj->deps,
+					'required_by'  => [],
 					'was_dequeued' => true,
 					'size'         => self::get_asset_size( (string) $obj->src ),
 				];
@@ -252,6 +235,7 @@ class FrontendPanel {
 					'src'          => $obj ? (string) $obj->src : '',
 					'source_label' => $source_label,
 					'deps'         => $obj ? $obj->deps : [],
+					'required_by'  => [],
 					'size'         => ( $obj && $obj->src ) ? self::get_asset_size( (string) $obj->src ) : 0,
 				];
 			}

@@ -63,10 +63,34 @@ class DequeueEngine {
 			// incorrectly triggers the stale-rule detector in the admin screen.
 			// wp_dequeue_* alone is sufficient to prevent the asset from being output.
 			if ( 'js' === $rule->asset_type ) {
+				$this->remove_dependency_from_parents( $rule->asset_handle, 'js' );
 				wp_dequeue_script( $rule->asset_handle );
 			} else {
+				$this->remove_dependency_from_parents( $rule->asset_handle, 'css' );
 				wp_dequeue_style( $rule->asset_handle );
 			}
+		}
+	}
+
+	private function remove_dependency_from_parents( string $handle, string $type ): void {
+		global $wp_scripts, $wp_styles;
+
+		$registry = 'js' === $type ? $wp_scripts : $wp_styles;
+		if ( ! ( $registry instanceof \WP_Dependencies ) ) {
+			return;
+		}
+
+		foreach ( $registry->registered as $dependency ) {
+			if ( ! is_array( $dependency->deps ?? null ) || ! in_array( $handle, $dependency->deps, true ) ) {
+				continue;
+			}
+
+			$dependency->deps = array_values(
+				array_filter(
+					$dependency->deps,
+					static fn( $dep ): bool => $dep !== $handle
+				)
+			);
 		}
 	}
 
