@@ -167,6 +167,8 @@ assert_same(array('woocommerce'), $panel_cookie[0]['required_by'] ?? null, 'fron
 
 $panel_js = file_get_contents(__DIR__ . '/../assets/js/panel.js');
 assert_true(false !== strpos($panel_js, 'a.required_by'), 'panel JS should search/render required_by metadata.');
+assert_true(false !== strpos($panel_js, '_cu.bindEvents(newRow);'), 'panel row replacement should bind events only on the replaced row.');
+assert_true(false === strpos($panel_js, 'if (parent) _cu.bindEvents(parent);'), 'panel row replacement must not re-bind the whole group after one toggle.');
 
 $GLOBALS['dequeued_scripts'] = array();
 $GLOBALS['wp_scripts'] = setup_scripts();

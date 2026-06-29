@@ -531,8 +531,7 @@ var cuClosePanel = function () {
 			tmp.innerHTML = _cu.assetRow(a);
 			var newRow = tmp.firstChild;
 			row.parentNode.replaceChild(newRow, row);
-			var parent = newRow.closest('.cu-source-assets') || document.getElementById('cu-assets-tab');
-			if (parent) _cu.bindEvents(parent);
+			_cu.bindEvents(newRow);
 
 			// Re-render header row counts
 			var groupEl = newRow.closest('.cu-source-group');

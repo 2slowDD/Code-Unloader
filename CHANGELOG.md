@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.10 - 2026-06-29
+
+### Fixed
+
+- **Frontend panel re-enable toggles no longer inherit duplicate listeners after the first row update.** `replaceRow()` now binds events only inside the newly replaced row instead of rebinding the whole source group, preventing later disabled rows from opening the Disable Asset dialog when they should show the re-enable scope chooser.
+
+---
+
 ## 1.4.9 - 2026-06-15
 
 ### Fixed

@@ -4,7 +4,7 @@ Tags: performance, assets, scripts, styles, dequeue
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.4.9
+Stable tag: 1.4.10
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,9 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 6. Admin screen — Settings tab with kill switch
 
 == Changelog ==
+
+= 1.4.10 =
+* Fixed: after re-enabling one asset from the frontend panel, later disabled rows no longer inherit duplicate toggle listeners that could open the Disable Asset dialog instead of the re-enable scope chooser.
 
 = 1.4.9 =
 * Fixed: dependency-only assets such as WooCommerce's `wc-js-cookie` now appear in the frontend panel with "Required by" metadata, so they can be searched and toggled like directly queued assets.
