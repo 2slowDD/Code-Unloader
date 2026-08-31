@@ -383,6 +383,7 @@ class RuleRepository {
 		$asset_type    = $filters['asset_type'] ?? '';
 		$device_type   = $filters['device_type'] ?? '';
 		$gid           = isset( $filters['group_id'] ) ? (int) $filters['group_id'] : 0;
+		$url_pattern   = $filters['url_pattern'] ?? '';
 
 		if ( $gid === 0 ) {
 			// All Groups view: collapse cross-group duplicates into one row per unique
@@ -407,6 +408,7 @@ class RuleRepository {
 					   AND (%s = '' OR r.match_type = %s)
 					   AND (%s = '' OR r.asset_type = %s)
 					   AND (%s = '' OR r.device_type = %s)
+					   AND (%s = '' OR r.url_pattern = %s)
 					 GROUP BY r.url_pattern, r.match_type, r.asset_handle, r.asset_type,
 					          r.device_type, r.condition_type, r.condition_value, r.condition_invert
 					 ORDER BY MIN(r.created_at) DESC
@@ -415,6 +417,7 @@ class RuleRepository {
 					$match_type, $match_type,
 					$asset_type, $asset_type,
 					$device_type, $device_type,
+					$url_pattern, $url_pattern,
 					$per_page, $offset
 				)
 			);
@@ -429,13 +432,15 @@ class RuleRepository {
 					      AND (%s = '' OR r.match_type = %s)
 					      AND (%s = '' OR r.asset_type = %s)
 					      AND (%s = '' OR r.device_type = %s)
+					      AND (%s = '' OR r.url_pattern = %s)
 					    GROUP BY r.url_pattern, r.match_type, r.asset_handle, r.asset_type,
 					             r.device_type, r.condition_type, r.condition_value, r.condition_invert
 					) AS unique_rules",
 					$search_bypass, $search_like, $search_like, $search_like,
 					$match_type, $match_type,
 					$asset_type, $asset_type,
-					$device_type, $device_type
+					$device_type, $device_type,
+					$url_pattern, $url_pattern
 				)
 			);
 			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -453,12 +458,14 @@ class RuleRepository {
 					   AND (%s = '' OR r.match_type = %s)
 					   AND (%s = '' OR r.asset_type = %s)
 					   AND (%s = '' OR r.device_type = %s)
+					   AND (%s = '' OR r.url_pattern = %s)
 					 ORDER BY r.created_at DESC
 					 LIMIT %d OFFSET %d",
 					$search_bypass, $search_like, $search_like, $search_like,
 					$match_type, $match_type,
 					$asset_type, $asset_type,
 					$device_type, $device_type,
+					$url_pattern, $url_pattern,
 					$per_page, $offset
 				)
 			);
@@ -471,11 +478,13 @@ class RuleRepository {
 					   AND (%s = '' OR (r.url_pattern LIKE %s OR r.asset_handle LIKE %s OR r.source_label LIKE %s))
 					   AND (%s = '' OR r.match_type = %s)
 					   AND (%s = '' OR r.asset_type = %s)
-					   AND (%s = '' OR r.device_type = %s)",
+					   AND (%s = '' OR r.device_type = %s)
+					   AND (%s = '' OR r.url_pattern = %s)",
 					$search_bypass, $search_like, $search_like, $search_like,
 					$match_type, $match_type,
 					$asset_type, $asset_type,
-					$device_type, $device_type
+					$device_type, $device_type,
+					$url_pattern, $url_pattern
 				)
 			);
 			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -493,6 +502,7 @@ class RuleRepository {
 					   AND (%s = '' OR r.match_type = %s)
 					   AND (%s = '' OR r.asset_type = %s)
 					   AND (%s = '' OR r.device_type = %s)
+					   AND (%s = '' OR r.url_pattern = %s)
 					 ORDER BY r.created_at DESC
 					 LIMIT %d OFFSET %d",
 					$gid,
@@ -500,6 +510,7 @@ class RuleRepository {
 					$match_type, $match_type,
 					$asset_type, $asset_type,
 					$device_type, $device_type,
+					$url_pattern, $url_pattern,
 					$per_page, $offset
 				)
 			);
@@ -512,18 +523,45 @@ class RuleRepository {
 					   AND (%s = '' OR (r.url_pattern LIKE %s OR r.asset_handle LIKE %s OR r.source_label LIKE %s))
 					   AND (%s = '' OR r.match_type = %s)
 					   AND (%s = '' OR r.asset_type = %s)
-					   AND (%s = '' OR r.device_type = %s)",
+					   AND (%s = '' OR r.device_type = %s)
+					   AND (%s = '' OR r.url_pattern = %s)",
 					$gid,
 					$search_bypass, $search_like, $search_like, $search_like,
 					$match_type, $match_type,
 					$asset_type, $asset_type,
-					$device_type, $device_type
+					$device_type, $device_type,
+					$url_pattern, $url_pattern
 				)
 			);
 			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		}
 
 		return [ 'rows' => $rows ?: [], 'total' => $count ];
+	}
+
+	/**
+	 * Distinct URL patterns across all rules, for the admin URL filter dropdown.
+	 *
+	 * Returns the patterns exactly as stored — a wildcard or regex rule appears as
+	 * its own entry rather than being expanded against the exact URLs it matches.
+	 * That keeps every dropdown option a 1:1 handle on rows the operator can see,
+	 * and keeps the filter a plain equality comparison in SQL.
+	 *
+	 * @return string[]
+	 */
+	public static function get_distinct_url_patterns(): array {
+		$cached = wp_cache_get( 'cdunloader_distinct_url_patterns' );
+		if ( false !== $cached ) {
+			return $cached;
+		}
+		global $wpdb;
+		$results = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			"SELECT DISTINCT url_pattern
+			 FROM {$wpdb->prefix}cu_rules
+			 ORDER BY url_pattern"
+		) ?: [];
+		wp_cache_set( 'cdunloader_distinct_url_patterns', $results );
+		return $results;
 	}
 
 	// -------------------------------------------------------------------------
@@ -1039,5 +1077,6 @@ class RuleRepository {
 		wp_cache_delete( 'cdunloader_all_rules' );
 		wp_cache_delete( 'cdunloader_all_groups' );
 		wp_cache_delete( 'cdunloader_rules_count' );
+		wp_cache_delete( 'cdunloader_distinct_url_patterns' );
 	}
 }

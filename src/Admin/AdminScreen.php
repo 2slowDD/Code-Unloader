@@ -402,7 +402,7 @@ class AdminScreen {
 			</div>
 			<div class="cu-sidebar-box cu-sidebar-box--cta">
 				<h3 class="cu-sidebar-heading"><?php esc_html_e( 'AI Assets Scanner', 'code-unloader' ); ?></h3>
-				<p class="cu-sidebar-text"><?php esc_html_e( 'Try the groundbreaking automatic AI Assets Scanner unloading for smarter asset rules with less manual work.', 'code-unloader' ); ?></p>
+				<p class="cu-sidebar-text"><?php esc_html_e( 'Improve your speed with the groundbreaking automatic AI Assets Scanner unloading', 'code-unloader' ); ?></p>
 				<a href="https://wpservice.pro/our-products/ai-assets-scanner/" target="_blank" rel="noopener noreferrer" class="cu-sidebar-product-link">
 					<img src="<?php echo esc_url( CDUNLOADER_URL . 'assets/img/iconAAS-100x100.png' ); ?>" alt="<?php esc_attr_e( 'AI Assets Scanner', 'code-unloader' ); ?>" class="cu-sidebar-product-icon">
 				</a>
@@ -490,20 +490,62 @@ class AdminScreen {
 		echo '<input type="hidden" name="page" value="code-unloader">';
 		echo '<input type="hidden" name="tab"  value="rules">';
 
-		// Group filter dropdown
-		$all_groups     = RuleRepository::get_all_groups();
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$current_group  = isset( $_GET['group_id'] ) ? (int) $_GET['group_id'] : 0;
-		if ( ! empty( $all_groups ) ) {
-			echo '<div class="alignleft actions" style="margin-bottom:8px;">';
-			echo '<select name="group_id" id="cu-filter-group">';
+		// Filter toolbar: filter by URL *or* by Group, one at a time.
+		// The inactive <select> is rendered disabled inside a hidden wrapper so it is
+		// not submitted, and so the correct control is already showing after a submit
+		// even with JavaScript off. RulesListTable::resolve_filters() independently
+		// drops the inactive mode's parameter, so the exclusivity is not JS-dependent.
+		$all_groups = RuleRepository::get_all_groups();
+		$all_urls   = RuleRepository::get_distinct_url_patterns();
+
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only list filtering.
+		$current_group = isset( $_GET['group_id'] ) ? intval( wp_unslash( $_GET['group_id'] ) ) : 0;
+		$current_url   = isset( $_GET['url_pattern'] ) ? sanitize_text_field( wp_unslash( $_GET['url_pattern'] ) ) : '';
+		$filter_by     = isset( $_GET['filter_by'] ) ? sanitize_key( wp_unslash( $_GET['filter_by'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		$mode          = RulesListTable::resolve_filter_mode( [ 'filter_by' => $filter_by ] );
+		$is_group_mode = RulesListTable::FILTER_MODE_GROUP === $mode;
+
+		if ( ! empty( $all_urls ) || ! empty( $all_groups ) ) {
+			echo '<div class="alignleft actions cu-filter-bar" style="margin-bottom:8px;">';
+
+			// Mode switch — decides which of the two dropdowns below is live.
+			echo '<select name="filter_by" id="cu-filter-mode">';
+			echo '<option value="' . esc_attr( RulesListTable::FILTER_MODE_URL ) . '"' . selected( $is_group_mode, false, false ) . '>'
+				. esc_html__( 'URL', 'code-unloader' ) . '</option>';
+			echo '<option value="' . esc_attr( RulesListTable::FILTER_MODE_GROUP ) . '"' . selected( $is_group_mode, true, false ) . '>'
+				. esc_html__( 'Group', 'code-unloader' ) . '</option>';
+			echo '</select> ';
+
+			// URL dropdown.
+			echo '<span class="cu-filter-field" id="cu-filter-url-wrap"' . ( $is_group_mode ? ' style="display:none;"' : '' ) . '>';
+			echo '<select name="url_pattern" id="cu-filter-url"' . ( $is_group_mode ? ' disabled' : '' ) . '>';
+			echo '<option value="">' . esc_html__( 'All URLs', 'code-unloader' ) . '</option>';
+			foreach ( $all_urls as $url ) {
+				$url   = (string) $url;
+				$label = strlen( $url ) > 60 ? mb_substr( $url, 0, 57 ) . '…' : $url;
+				echo '<option value="' . esc_attr( $url ) . '" title="' . esc_attr( $url ) . '"'
+					. selected( $current_url, $url, false ) . '>' . esc_html( $label ) . '</option>';
+			}
+			echo '</select> ';
+			echo '</span>';
+
+			// Group dropdown.
+			echo '<span class="cu-filter-field" id="cu-filter-group-wrap"' . ( $is_group_mode ? '' : ' style="display:none;"' ) . '>';
+			echo '<select name="group_id" id="cu-filter-group"' . ( $is_group_mode ? '' : ' disabled' ) . '>';
 			echo '<option value="0">' . esc_html__( 'All Groups', 'code-unloader' ) . '</option>';
 			echo '<option value="-1"' . selected( $current_group, -1, false ) . '>' . esc_html__( 'Ungrouped', 'code-unloader' ) . '</option>';
 			foreach ( $all_groups as $g ) {
 				echo '<option value="' . esc_attr( $g->id ) . '"' . selected( $current_group, (int) $g->id, false ) . '>' . esc_html( $g->name ) . '</option>';
 			}
 			echo '</select> ';
-			echo '<input type="submit" class="button" value="' . esc_attr__( 'Filter by Group', 'code-unloader' ) . '">';
+			echo '</span>';
+
+			echo '<input type="submit" class="button" id="cu-filter-submit"'
+				. ' data-label-url="' . esc_attr__( 'Filter by URL', 'code-unloader' ) . '"'
+				. ' data-label-group="' . esc_attr__( 'Filter by Group', 'code-unloader' ) . '"'
+				. ' value="' . ( $is_group_mode ? esc_attr__( 'Filter by Group', 'code-unloader' ) : esc_attr__( 'Filter by URL', 'code-unloader' ) ) . '">';
 			echo '</div>';
 		}
 

@@ -15,6 +15,10 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 
 class RulesListTable extends \WP_List_Table {
 
+	/** Filter modes for the Rules screen toolbar. URL is the default view. */
+	public const FILTER_MODE_URL   = 'url';
+	public const FILTER_MODE_GROUP = 'group';
+
 	public function __construct() {
 		parent::__construct( [
 			'singular' => 'rule',
@@ -157,6 +161,45 @@ class RulesListTable extends \WP_List_Table {
 		return isset( $item->$column_name ) ? esc_html( (string) $item->$column_name ) : '—';
 	}
 
+	/**
+	 * Which filter the Rules toolbar is currently driving: URL or Group.
+	 *
+	 * Anything other than an explicit "group" resolves to URL, so the screen
+	 * opens on "All URLs" with no query string present.
+	 *
+	 * @param array $request Sanitized request values.
+	 */
+	public static function resolve_filter_mode( array $request ): string {
+		return self::FILTER_MODE_GROUP === ( $request['filter_by'] ?? '' )
+			? self::FILTER_MODE_GROUP
+			: self::FILTER_MODE_URL;
+	}
+
+	/**
+	 * Map sanitized request values to the filter set for get_rules_filtered().
+	 *
+	 * The screen filters by URL *or* by Group, never both. That exclusivity is
+	 * enforced here rather than in the browser: whichever mode is inactive has
+	 * its parameter dropped outright, so a stale or hand-edited query string
+	 * cannot smuggle a second filter past the hidden <select>.
+	 *
+	 * Input is already sanitized by the caller — this method only decides which
+	 * values survive, so it stays free of superglobals and can be tested directly.
+	 *
+	 * @param array $request Sanitized request values.
+	 */
+	public static function resolve_filters( array $request ): array {
+		$is_group_mode = self::FILTER_MODE_GROUP === self::resolve_filter_mode( $request );
+
+		return [
+			'search'      => (string) ( $request['s'] ?? '' ),
+			'match_type'  => (string) ( $request['match_type'] ?? '' ),
+			'asset_type'  => (string) ( $request['asset_type'] ?? '' ),
+			'group_id'    => $is_group_mode ? (int) ( $request['group_id'] ?? 0 ) : 0,
+			'url_pattern' => $is_group_mode ? '' : (string) ( $request['url_pattern'] ?? '' ),
+		];
+	}
+
 	public function prepare_items(): void {
 		// Read per-page from the user's saved screen option (set via the Screen Options panel).
 		// Falls back to 10 if not set. Allowed values: 10, 20, 50.
@@ -164,14 +207,20 @@ class RulesListTable extends \WP_List_Table {
 		$per_page = in_array( $saved, [ 10, 20, 50 ], true ) ? $saved : 10;
 		$page     = $this->get_pagenum();
 
+		// Sanitize at the superglobal boundary; resolve_filters() then decides which
+		// values apply. intval (not absint) on group_id — -1 is the Ungrouped view.
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- WP_List_Table filtering, no data modification.
-		$filters = [
-			'search'     => isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '',
-			'match_type' => isset( $_REQUEST['match_type'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['match_type'] ) ) : '',
-			'asset_type' => isset( $_REQUEST['asset_type'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['asset_type'] ) ) : '',
-			'group_id'   => isset( $_REQUEST['group_id'] ) ? (int) $_REQUEST['group_id'] : 0,
+		$request = [
+			'filter_by'   => isset( $_REQUEST['filter_by'] ) ? sanitize_key( wp_unslash( $_REQUEST['filter_by'] ) ) : '',
+			's'           => isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '',
+			'match_type'  => isset( $_REQUEST['match_type'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['match_type'] ) ) : '',
+			'asset_type'  => isset( $_REQUEST['asset_type'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['asset_type'] ) ) : '',
+			'group_id'    => isset( $_REQUEST['group_id'] ) ? intval( wp_unslash( $_REQUEST['group_id'] ) ) : 0,
+			'url_pattern' => isset( $_REQUEST['url_pattern'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['url_pattern'] ) ) : '',
 		];
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		$filters = self::resolve_filters( $request );
 
 		$result = RuleRepository::get_rules_filtered( array_filter( $filters ), $per_page, $page );
 

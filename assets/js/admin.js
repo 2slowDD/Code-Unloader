@@ -521,4 +521,29 @@
 		});
 	})();
 
+	// ---------------------------------------------------------------------
+	// Rules filter toolbar — switch between filtering by URL and by Group.
+	// Only the active dropdown stays enabled, so the inactive one is never
+	// submitted. This is presentation only: the server re-derives the mode
+	// from `filter_by` and drops the inactive parameter on its own, so a
+	// stale query string cannot apply both filters even without this handler.
+	// ---------------------------------------------------------------------
+	document.addEventListener('change', function (e) {
+		const mode = e.target.closest('#cu-filter-mode');
+		if (!mode) return;
+
+		const isGroup  = mode.value === 'group';
+		const urlWrap  = document.getElementById('cu-filter-url-wrap');
+		const grpWrap  = document.getElementById('cu-filter-group-wrap');
+		const urlSel   = document.getElementById('cu-filter-url');
+		const grpSel   = document.getElementById('cu-filter-group');
+		const submit   = document.getElementById('cu-filter-submit');
+
+		if (urlWrap) urlWrap.style.display = isGroup ? 'none' : '';
+		if (grpWrap) grpWrap.style.display = isGroup ? '' : 'none';
+		if (urlSel)  urlSel.disabled = isGroup;
+		if (grpSel)  grpSel.disabled = !isGroup;
+		if (submit)  submit.value = isGroup ? submit.dataset.labelGroup : submit.dataset.labelUrl;
+	});
+
 })();

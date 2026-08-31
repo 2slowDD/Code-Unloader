@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.11 - 2026-08-31
+
+### Added
+
+- **Filter the Rules tab by URL.** The rules toolbar gained a URL/Group switch: choose `URL` to filter the list down to the rules stored for a single page, or `Group` for the previous group filter. The dropdown lists the distinct `url_pattern` values already on record, so a wildcard or regex rule appears as its own entry rather than being expanded against the pages it matches. The screen opens on `All URLs`.
+
+### Changed
+
+- The two filters are mutually exclusive, and that exclusivity is enforced server-side in `RulesListTable::resolve_filters()` — the inactive mode's parameter is dropped rather than merely hidden, so a stale query string cannot apply both. The inactive `<select>` is also rendered `disabled`, keeping the toolbar correct with JavaScript off.
+- Reworded the AI Assets Scanner sidebar card.
+- Bumped plugin version/readme metadata to `1.4.11` and `Tested up to` to `7.1`.
+
+---
+
 ## 1.4.10 - 2026-06-29
 
 ### Fixed

@@ -2,9 +2,9 @@
 Contributors: dalibord
 Tags: performance, assets, scripts, styles, dequeue
 Requires at least: 6.2
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.4.10
+Stable tag: 1.4.11
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,12 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 6. Admin screen — Settings tab with kill switch
 
 == Changelog ==
+
+= 1.4.11 =
+* Added: filter the Rules tab by URL. A new URL/Group switch sits at the top of the rules list; pick a URL to see only the rules stored for that page. The list opens on "All URLs".
+* Changed: the rules toolbar now filters by URL or by Group, one at a time, instead of by Group only.
+* Changed: tested WordPress compatibility updated to 7.1 and plugin version bumped to 1.4.11.
+* Changed: reworded the AI Assets Scanner sidebar card.
 
 = 1.4.10 =
 * Fixed: after re-enabling one asset from the frontend panel, later disabled rows no longer inherit duplicate toggle listeners that could open the Disable Asset dialog instead of the re-enable scope chooser.
