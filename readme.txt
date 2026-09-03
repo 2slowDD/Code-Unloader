@@ -1,6 +1,6 @@
-=== Code Unloader ===
+=== Code Unloader – Unload CSS & JavaScript Per Page ===
 Contributors: dalibord
-Tags: performance, assets, scripts, styles, dequeue
+Tags: unload css, unload javascript, asset manager, script manager, dequeue
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
@@ -8,80 +8,126 @@ Stable tag: 1.4.11
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Per-page JavaScript & CSS asset management. Surgically dequeue scripts and styles on any page using exact, wildcard, or regex URL rules.
+Unload unused plugin CSS and JavaScript by page without code. Reduce HTTP requests and page weight with safe, reversible asset rules.
 
 == Description ==
+
+Code Unloader is a free WordPress asset manager that lets you unload unused plugin CSS and JavaScript on selected pages without writing PHP. Reduce HTTP requests and page weight by loading files only where they are needed, with a one-click kill switch and per-request bypass for quick rollback.
+
+One WordPress.org user unloaded eight JavaScript files and two CSS files from the homepage, reducing it by 634.2 KB and improving PageSpeed from 96 to 99. Results vary by site and depend on which assets can be safely unloaded.
+
+Read the review:
+[https://wordpress.org/support/topic/very-good-increases-pagespeed/](https://wordpress.org/support/topic/very-good-increases-pagespeed/)
+
+= Common uses =
+
+* Unload contact-form CSS and JavaScript from pages without a form
+* Stop WooCommerce assets from loading on pages that do not use shop features
+* Unload slider, sharing, popup, or page-builder files where they are not needed
+* Create different asset rules for desktop and mobile visitors
+* Apply rules to one URL, a group of URLs, post types, or conditional page types
+
+= How it works =
+
+1. Open any frontend page while logged in as an administrator.
+2. Click **⚡ Assets** in the WordPress Admin Toolbar.
+3. Find a CSS or JavaScript file and switch it off.
+4. Choose where the rule should apply: an exact URL, wildcard pattern, regular expression, device type, or condition.
+5. Save the rule, clear page cache if needed, and test the page.
+
+The frontend panel groups assets by plugin, theme, or WordPress Core, making it easier to see what is loading and where it came from.
+
 [youtube https://youtu.be/abCdOEl1cxg]
 
 Official plugin homepage:
 [https://wpservice.pro/our-products/code-unloader/](https://wpservice.pro/our-products/code-unloader/)
 
-Code Unloader gives site administrators surgical control over which JavaScript and CSS files are loaded on each individual page or post.
+= Main features =
 
-**Key Features:**
+* Unload registered CSS and JavaScript on selected pages or across matching URLs
+* Exact URL, wildcard (`/shop/*`), and regular-expression matching
+* Conditions for logged-in users, WooCommerce pages, shortcodes, and post types
+* Desktop-only and mobile-only asset rules
+* Rule groups, global rule management, audit log, and JSON import/export
+* One-click kill switch that restores all assets without deleting any rules
+* Per-request `?nowpcu` bypass for testing the unoptimized page
+* Detection of inline `<script>` and `<style>` blocks for easier investigation
 
-* Disable any registered JS or CSS file on any page or post
-* Exact URL, wildcard pattern (/shop/*), and full regex matching
-* Rules survive cache flushes and plugin reactivations
-* Assets grouped by plugin, theme, or WordPress Core in the panel
-* Per-page frontend panel accessible from the Admin Toolbar
-* Access panel on any page via `?wpcu` URL parameter
-* Global admin screen listing all rules across the site
-* One-click kill switch to instantly restore all assets sitewide
-* Bypass all rules for a single request via `?nowpcu` URL parameter
-* Conditional rules (logged-in users, WooCommerce pages, shortcodes, post types)
-* Device-type rules (desktop-only or mobile-only)
-* Inline script/style blocking for assets without registered handles
-* Inline block detection — see every inline `<script>` and `<style>` on the page
-* Rule groups for managing sets of rules as a unit
-* Full audit log of all changes
-* JSON import/export
-* Zero performance overhead on pages with no matching rules
+= Safe, reversible testing =
 
-**Compatible with:** WP Rocket, W3 Total Cache, LiteSpeed Cache, WP Super Cache, WooCommerce, Elementor, Divi, WP Bakery, basically everything WP related.
+Every rule can be disabled or deleted. If an unloaded file affects the page, append `?nowpcu` to the URL to bypass all Code Unloader rules for that request. You can also use the global kill switch to restore every asset sitewide while keeping your rules saved.
 
-**Requirements:** PHP 8.0 or higher is required. The plugin uses modern PHP features (union types, match expressions, named functions) that are not available in PHP 7.x.
+Test unloading changes on a staging site first whenever possible. Removing a required CSS or JavaScript file can affect a page's appearance or functionality.
 
-**Note:** It's recommended to test changes on a staging environment before applying them to a live site. Unloading the wrong assets can break your site's appearance or functionality.
+= Compatibility =
+
+Code Unloader is designed to work alongside common caching, optimization, e-commerce, and page-builder plugins, including WP Rocket, W3 Total Cache, LiteSpeed Cache, WP Super Cache, WooCommerce, Elementor, Divi, and WPBakery Page Builder.
+
+PHP 8.0 or higher is required.
 
 == Installation ==
 
-1. Upload the plugin files to `/wp-content/plugins/code-unloader`
-2. Activate the plugin through the **Plugins** screen in WordPress
-3. Visit any page while logged in as an admin and click **⚡ Assets** in the Admin Toolbar
-4. Toggle off any asset — a rule creation dialog will appear
+1. In WordPress, go to **Plugins > Add New Plugin** and search for **Code Unloader**.
+2. Click **Install Now**, then **Activate**.
+3. Visit any frontend page while logged in as an administrator.
+4. Click **⚡ Assets** in the Admin Toolbar.
+5. Switch off an asset and choose where the unloading rule should apply.
+6. Test the page's design and functionality after saving the rule.
 
 == Frequently Asked Questions ==
 
-= What PHP version do I need? =
-PHP 8.0 or higher. The plugin will not activate on PHP 7.x.
+= Does Code Unloader remove unused CSS inside a stylesheet? =
 
-= Will my rules survive a cache flush? =
-Yes. Rules are stored in a custom database table and are not affected by caching plugin cache clears.
+No. Code Unloader unloads an entire registered CSS file on pages that do not need it. It does not remove individual unused selectors from inside a stylesheet.
+
+= Can I unload plugin CSS and JavaScript without writing code? =
+
+Yes. Open the frontend asset panel, switch off the asset, and choose where the rule should apply. You do not need to add PHP snippets or edit theme files.
+
+= Can unloading an asset break a page? =
+
+Yes. A page can lose styling or functionality if you unload a required dependency. Test each change, preferably on staging. Use `?nowpcu` for a one-request bypass or the kill switch to restore all assets immediately.
+
+= Will my rules survive a cache flush or plugin reactivation? =
+
+Yes. Rules are stored in a custom database table and are not removed when plugin caches are cleared or Code Unloader is reactivated.
 
 = What is the kill switch? =
-The kill switch is a one-click emergency recovery button in **Settings > Code Unloader > Settings**. When active, all rules are bypassed and every asset loads normally. Your rules are not deleted — they resume when you deactivate the kill switch.
+
+The kill switch is an emergency recovery option in **Settings > Code Unloader > Settings**. When active, all rules are bypassed and every asset loads normally. Your rules are not deleted and resume when you deactivate the kill switch.
 
 = What does the ?wpcu parameter do? =
-Appending `?wpcu` to any frontend URL will automatically open the asset panel for logged-in administrators, even on pages where the Admin Toolbar is hidden. The parameter stays in the URL while the panel is open and is removed when you close it.
+
+Append `?wpcu` to a frontend URL to open the asset panel for logged-in administrators, including on pages where the Admin Toolbar is hidden. The parameter remains while the panel is open and is removed when you close it.
 
 = What does the ?nowpcu parameter do? =
-Appending `?nowpcu` to any frontend URL disables all Code Unloader rules for that single request — the page loads exactly as if the plugin were not active. This follows the same convention as `?nowprocket` (WP Rocket) and `?ao_noptimize=1` (Autoptimize). Useful for testing, debugging, or performance scanning tools that need to measure the raw unoptimized asset baseline.
 
-= Does it support regex? =
-Yes. When creating a rule, choose **Regular Expression** as the match type. Patterns are validated before saving, and a regex warning is shown to help you keep patterns specific.
+Append `?nowpcu` to a URL to bypass all Code Unloader rules for that request. The page loads as if Code Unloader were not applying any rules. This is useful for testing, debugging, and comparing optimized and unoptimized asset loading.
 
-= What are inline blocks? =
-Inline blocks are `<script>` and `<style>` tags that are printed directly into the page HTML rather than being registered through WordPress's enqueue system. The Inline Blocks tab in the panel detects and lists these blocks so you can identify them.
+= Does it support wildcard and regular-expression rules? =
+
+Yes. Choose an exact URL, wildcard pattern, or regular expression when creating a rule. Regular expressions are validated before saving.
+
+= Can it unload inline script and style blocks? =
+
+The Inline Blocks tab detects and lists `<script>` and `<style>` tags printed directly into the page HTML. It helps you identify inline code, but those blocks cannot currently be unloaded from the frontend panel.
+
+= Does Code Unloader replace a caching or minification plugin? =
+
+No. Code Unloader controls whether a registered CSS or JavaScript file loads on a matching page. Caching and minification plugins change how files are stored or delivered. They can be used together.
+
+= What PHP version do I need? =
+
+PHP 8.0 or higher. The plugin will not activate on PHP 7.x.
 
 == Screenshots ==
 
-1. Frontend panel showing assets grouped by source
-2. Rule creation dialog with match type, device, and condition options
-3. Global admin screen — Rules tab
-4. Admin screen — Groups tab
-5. Admin screen — Audit Log tab
-6. Admin screen — Settings tab with kill switch
+1. Frontend asset manager showing CSS and JavaScript grouped by plugin, theme, or WordPress Core
+2. Create an unloading rule by URL match, device type, and condition
+3. View and filter all CSS and JavaScript unloading rules from one screen
+4. Organize related asset rules into groups and enable or disable them together
+5. Review rule changes in the audit log
+6. Use the kill switch to bypass all rules without deleting them
 
 == Changelog ==
 
@@ -94,229 +140,4 @@ Inline blocks are `<script>` and `<style>` tags that are printed directly into t
 = 1.4.10 =
 * Fixed: after re-enabling one asset from the frontend panel, later disabled rows no longer inherit duplicate toggle listeners that could open the Disable Asset dialog instead of the re-enable scope chooser.
 
-= 1.4.9 =
-* Fixed: dependency-only assets such as WooCommerce's `wc-js-cookie` now appear in the frontend panel with "Required by" metadata, so they can be searched and toggled like directly queued assets.
-* Fixed: unloading a dependency-only script or style now removes that handle from parent dependency lists before dequeueing, preventing WordPress from pulling it back in through the parent asset.
-
-= 1.4.8 =
-* Added: AI Assets Scanner CTA box to the admin sidebar, placed before the Speed Analyzer CTA and linked to the product page.
-* Changed: tested WordPress compatibility updated to 7.0 and plugin version bumped to 1.4.8.
-
-= 1.4.7 =
-* Added: clickable URL/Pattern links on the Rules tab. A rule whose match type is "exact" and whose pattern is a full http(s) URL now renders as a link that opens the page in a new tab; wildcard, regex, and relative patterns stay as plain text. Link output is fully escaped.
-* Changed: scanner groups and source labels pushed by AI Assets Scanner are rebranded from "CU Scanner" to "AA Scanner". On upgrade, a one-time database migration (schema 1.5.3) renames existing scanner group names ("CU Scanner — Safe", "CU Scanner — Aggressive", and versioned history) and rule/group-item source labels to their "AA Scanner" equivalents. The migration is idempotent and touches only display columns. Requires AI Assets Scanner 1.4.13 or higher for the new names on future pushes.
-
-= 1.4.6 =
-* Fixed: re-enabling a grouped rule from the frontend panel no longer hides the asset row after a page refresh. The panel now also surfaces assets tracked via group snapshots (cu_group_items) on URLs whose pattern matches the snapshot, so user-managed assets stay visible even after their active rule is deleted. Affected setups where the source plugin enqueues at a higher priority than the panel scan or via wp_footer.
-* Fixed: the open Code Unloader admin Rules tab now refreshes automatically after AI Assets Scanner pushes rules to CU. Previously the table and total count stayed stale until manual reload or tab switch. Same-browser only (BroadcastChannel + storage-event fallback) — required a one-line emit on the Scanner side, no CU-side plumbing changes (the listener has been there since 1.4.4).
-* Fixed: the panel now shows the actually-loaded asset URL when an optimizer rewrites the src via script_loader_src / style_loader_src (Perfmatters, WP Rocket page-cache mode, hash-versioning plugins, CDN URL-rewriters). Rows whose registered src differs from the rewritten URL get a small italic "→ <filename>" line under the registered filename. HTML-output-buffering optimizers (Autoptimize and friends) are not yet covered — separate feature.
-* Changed: search filter on the panel now matches across handle, full URL, rewritten URL, source plugin name, and extracted filenames. Placeholder text updated to "Filter by handle, filename, source, or URL…" so the new behavior is discoverable.
-* Internal: consolidated FrontendPanel.php:247 panel-version HTML comment to a single CDUNLOADER_VERSION echo — removed stale "panel.js v9 | panel.css v9" hardcoded literals that had drifted from the actual panel.js v10 header. Future per-file version trails should live in the per-file headers, not the HTML comment.
-* Internal: new RuleRepository::get_group_item_snapshots_for_url() method with versioned object cache (cdunloader_snapshots_version counter, bumped from create_group_item / delete_group_items / delete_all_groups / update_group when enabled toggles). No DB schema change.
-
-= 1.4.5 =
-* Fixed: bulk rule deletion ("Delete All Active Rules" / multi-select bulk delete) now purges 3rd-party page cache (WP Rocket, LiteSpeed, SG Optimizer, FlyingPress, Hummingbird, Autoptimize, Breeze, Nginx Helper, Cloudflare, etc.). Previously these paths only cleared the WP object cache, so cached HTML kept serving until the cache TTL expired or the plugin was deactivated/reactivated — sometimes leaving stale console errors from already-stripped inline localizes.
-* Fixed: enabling/disabling a group via the Groups tab now purges 3rd-party page cache. Same root cause as above; toggling a group's enabled flag changes which rules apply at runtime.
-* Fixed: deleting a single group (`DELETE /groups/{id}`) and deleting all groups now purges 3rd-party page cache.
-* Changed: enabled groups now float to the top of the Groups tab. Active groups are visible at a glance; alphabetical order is preserved within each enabled/disabled bucket.
-* Added: group cards now show the creation date next to the title (e.g. "Created, April 23 2026" in a small dimmed badge). Suppressed when the group name already contains the same date.
-* Internal: `phpcs:enable` scope corrected in `delete_all_groups()` so the `WordPress.DB.DirectDatabaseQuery.*` suppression doesn't leak past the intended block.
-
-= 1.4.4 =
-* Added: "Delete All Groups" button on the Groups tab. Wipes all groups and their snapshots. Active rules survive and become ungrouped.
-* Added: live sync between frontend CU Panel and admin Rules tab — rule changes made from the panel now update the Rules tab list + total count automatically (same-browser only, via BroadcastChannel with a storage-event fallback).
-
-= 1.4.3 =
-* Fixed: `POST /rules` returning 500 (Internal Server Error) when creating rules whose 6-column scope (url_pattern, match_type, asset_handle, asset_type, device_type, group_id) already existed with different condition settings — the in-PHP duplicate check was stricter than the DB UNIQUE KEY, allowing the insert to fall through to a duplicate-key violation
-* Fixed: AI Assets Scanner push silently dropping rules — same root cause as above; pushed rules that shared the 6-column scope but differed in condition fields were rejected by the DB after passing the PHP dedup check
-* Fixed: cu-panel "deactivate second asset" 500 error — same root cause
-* Fixed: page-scoped asset re-enable (`POST /rules/enable` with `scope: page`) threw a TypeError — `PatternMatcher::match()` was called with the pre-1.5 signature
-* Internal: `RuleRepository::find_duplicate()` now matches the DB UNIQUE KEY exactly (6-column identity). Conditions are attributes of a rule, not part of its identity — one active rule per (url_pattern, match_type, asset_handle, asset_type, device_type, group_id) scope
-* Internal: `cu_log.action` ENUM in fresh `CREATE TABLE` now includes `group_activate` and `group_deactivate` (matches the migration ALTER)
-* Internal: added defensive auto-heal for legacy `identity_key` schema drift on cu_rules (pre-release dev artifact) — drops the orphan column + misaligned UNIQUE KEY and re-adds the correct 6-column composite key
-* Internal: added companion auto-heal for legacy `snapshot_key` schema drift on cu_group_items — same pattern, different table; collapsed group snapshots to 1 per group, which broke group enable/disable cascade on rules
-* Both heals safety-gated: bail without data loss if pre-existing rows would violate the corrected key
-* Schema version bumped to 1.5.2 to trigger both heals on sites already at DB 1.5
-
-= 1.5.0 =
-* Added group snapshot library (cu_group_items) — group membership is now independent of active rules
-* Added scoped panel re-enable: "On this page" and "Globally" buttons
-* Added REST endpoints: POST /rules/enable, GET /groups/{id}/items
-* Group counts now reflect saved snapshots, not active rules
-* Automatic non-destructive migration from 1.4.x
-
-= 1.4.2 =
-* Fixed: DB migration now runs automatically on plugin update — schema upgrades no longer require manual deactivation/reactivation
-* Fixed: `uniq_rule` database index updated to include `group_id` — the same rule can now correctly exist in multiple groups at the database level (DB version 1.2)
-* Fixed: "View Rules" modal now correctly lists rules for disabled groups — previously returned "No rules in this group." due to the disabled-group filter being applied unconditionally
-* Fixed: Duplicate rules within the same group or ungrouped Rules tab are now silently blocked — creating an identical rule (same URL, handle, type, device, and condition) in the same scope skips the insert and returns the existing rule
-
-= 1.4.1 =
-* Fixed: Cloudflare cache integration corrected — cloudflare_purge_by_url and cloudflare_purge_everything are filters, not actions; both replaced with the correct cloudflare_purge_everything_actions filter mechanism
-
-= 1.4.0 =
-* New: "View Rules" button on each group card — opens a modal listing all rules in that group with zebra-stripe styling
-* Changed: Rule uniqueness constraint now scoped per group — the same asset/URL combination can exist independently in multiple groups
-
-= 1.3.9 =
-* Changed: Bypass mechanism replaced — appending ?nowpcu to any URL now disables all Code Unloader rules for that request, following the same convention as ?nowprocket (WP Rocket) and ?ao_noptimize=1 (Autoptimize)
-
-= 1.3.8 =
-* Removed: CU_SCANNER_ACTIVE constant bypass (superseded by ?nowpcu)
-
-= 1.3.7 =
-* Fixed: All plugin-specific PHP constants, option names, transient keys, cache keys, and JS globals renamed from the short "cu_" prefix (2 chars) to "cdunloader_" to comply with WordPress.org prefix length requirements (minimum 4 characters)
-* Fixed: Third-party global variable $nginx_helper in CachePurger now suppressed with phpcs inline comment
-
-= 1.3.6 =
-* New: Speed Analyzer CTA box added to admin sidebar with icon and link
-
-
-= 1.3.5 =
-* Changed: Frontend panel width reduced from 800px to 750px
-* Fixed: Removed unused jQuery dependency from admin script enqueue
-
-
-= 1.3.4 =
-* Updated plugin icon
-* Fixed: Inline <script> for CU_DATA replaced with wp_add_inline_script() per WP.org guidelines
-* Fixed: Plugins-page delete confirmation JS moved to enqueued file (delete-confirm.js), removing inline <script>
-* Fixed: Contributors field updated to correct WordPress.org username (dalibord)
-* New: Ratings & Reviews / Get Support sidebar added to admin screen
-
-
-= 1.3.3 =
-* New: Empty-state guidance message shown below the summary bar when no rules exist yet
-
-
-= 1.3.2 =
-* Fixed: Disabled files link hover colour on light theme — was nearly invisible due to opacity on dark-red text over light background; now renders as a darker red
-
-
-= 1.3.1 =
-* Fixed: Stats bar ("Disabled on this URL") now updates instantly on every toggle — no refresh needed
-* New: "Re-enable all" button added to the stats bar, re-enables all disabled assets on the page at once
-* Fixed: Duplicate import success message resolved via PRG redirect (Post-Redirect-Get pattern)
-* New: Disabled file count in stats bar is now a link that scrolls to the first disabled asset row
-* Changed: "Reduced by:" text updated to "Unloaded from this URL:"
-* Changed: Warning banner body text is now fully bold for better readability
-* Fixed: Warning banner icon, Dismiss button and "Don't show again" link are now vertically centered
-
-
-= 1.3.0 =
-* New: Disable Asset dialog now has a "＋ Create new group" option — creates the group on save and syncs it to the Groups panel
-* New: Disabled files summary bar on Assets tab: "Disabled on this URL: X files · Reduced by: Y KB"
-* New: Filter by Group dropdown on the Rules admin tab (including Ungrouped filter)
-* New: Delete All Rules button in the Rules summary bar with confirmation popup
-* Fixed: Plugin URI updated to https://wpservice.pro/
-* Fixed: Selected rules are deselected after bulk group assignment
-* Fixed: Assets panel now syncs rule/group data when user returns to the browser tab (visibilitychange)
-* Fixed: Duplicate import confirmation message resolved — notices rendered inline in Settings tab only
-* Fixed: Group filter in Rules admin now supports filtering by specific group or Ungrouped
-* Changed: "Delete" button on group cards renamed to "Delete Group"
-
-
-= 1.2.5 =
-* Fixed: Export now includes ALL rules including those in disabled groups (previously get_rules_filtered silently excluded them)
-* Fixed: Export strips the runtime-only group_enabled JOIN column so the JSON is clean
-* Fixed: Import now restores groups first, builds an old-ID-to-new-ID map, then remaps each rule's group_id before inserting
-* Fixed: Import matches existing groups by name to avoid duplicates; rules stay linked to the correct group
-* Fixed: Import preserves group enabled/disabled state
-* Improved: Import success message now reports rules imported, groups created, and existing groups matched
-
-
-= 1.2.4 =
-* Style: Source header row (light) — gradient from subtle purple to deep red tint
-* Style: Source header row (dark) — gradient from #f0f0f0 to deep red tint; chevron now white
-* Style: Warning banner — stronger red gradient applied to both themes
-
-
-= 1.2.3 =
-* Style: Toggle track for unloaded (off) assets changed to red (#cc1818) in both light and dark themes
-* Improved: Group-disabled assets now show both the blue "Group: X" badge and a red "Disabled (match_type)" badge, consistent with non-grouped disabled assets
-
-
-= 1.2.2 =
-* Style: Source group header rows now have a distinct background to visually separate plugins
-* Style: Light theme — header row background: #5500cc52 (semi-transparent purple); count/size/action badges: white with dark text
-* Style: Dark theme — header row background: #f0f0f0; source label color: #234897; all badges remain white-on-dark for contrast
-* All new colour pairs verified against WCAG AA contrast ratios
-
-
-= 1.2.1 =
-* Fixed: Disabled-group rules now correctly excluded from panel rule_map at PHP render time (FrontendPanel)
-* Fixed: Same (int) cast bug found and fixed in InlineBlocker group_enabled check
-* Fixed: REST get_rules endpoint page_url branch now skips disabled-group rules
-* Fixed: Disabling a group now suspends its rules — they disappear from the Rules tab, assets load normally on frontend and in panel
-* Fixed: "N total rules" count and Rules table now exclude suspended (disabled-group) rules
-* Fixed: COUNT query in get_rules_filtered now JOINs groups table so the group-enabled filter applies correctly to pagination totals
-* Fixed: Panel (GET /assets) now skips disabled-group rules so assets correctly show as Active when their group is disabled
-
-
-= 1.2.0 =
-* Fixed: Disabling a group now correctly stops its rules from being applied — wpdb returns column values as strings, so "0" was truthy and the group-disabled check never fired; fixed with explicit (int) cast
-
-
-= 1.1.9 =
-* Fixed: "N total rules" counter now updates instantly after any delete (single, bulk, stale) — no page reload needed
-* Fixed: Disabling a group now immediately stops its rules from being applied on the frontend — root cause was static in-memory rule cache not being cleared when group enabled state changed
-
-
-= 1.1.8 =
-* Fixed: "Assign" / "Save" button stays greyed out after first group assignment — button now always re-enables after any outcome
-* Fixed: Group column shows raw ID instead of name when assigning to a newly created group — integer type mismatch corrected
-* Improved: Panel now live-syncs rule_map and groups from the REST API on every open — admin changes are reflected without a page reload
-* Fixed: GET /assets endpoint now keys rules by handle|type (not handle alone) so same-handle JS+CSS rules both survive
-
-
-= 1.1.7 =
-* Improved: Admin layout widened from 1100px to 1200px
-* Improved: Rules table now defaults to 10 per page (was 20)
-* Added: "Rules per page" screen option (10 / 20 / 50) accessible via Screen Options tab at the top of the admin page
-
-
-= 1.1.6 =
-* Fixed: Group column in Rules table now updates instantly after bulk-assign — no page reload needed
-
-
-= 1.1.5 =
-* Added: "Group" column in admin Rules table — shows group name as a teal pill, or "—" if ungrouped
-* Improved: Settings icon in panel header replaced with a clean solid SVG gear (matches browser native style)
-
-
-= 1.1.4 =
-* Fixed: Plugin zip now correctly extracts to `code-unloader/` folder — resolves all PCP text domain mismatch false positives caused by wrong folder name
-* Added: Settings (⚙) icon button in panel header — links directly to the Code Unloader admin screen
-
-= 1.1.3 =
-* Improved: Disable Asset dialog widened from 560px to 660px for better readability
-* Improved: Version number now displayed next to plugin title in admin screen header
-* Fixed: Inline Blocks info message no longer references an unbuilt feature
-
-= 1.1.2 =
-* Added: Version displayed in panel header (plugin version + panel.js/panel.css file versions)
-* Added: "Everywhere except here" scope option in the Disable Asset dialog
-* Improved: Inline Blocks tab now shows informational notice — blocks cannot be unloaded from the panel
-* Improved: Inline Blocks CSS items now styled in blue (matching Assets tab), JS items in amber/yellow
-* Improved: Inline Blocks can be grouped by type (JS / CSS) via a toggle button
-* Fixed: Removed noisy "[Code Unloader] inline_blocks: N detected" console log
-* Fixed: "Save Rule" button text now has full contrast in light mode
-* Fixed: "Cancel" button text now visible on hover in dark mode
-
-= 1.1.0 =
-* Fixed: Panel now persists across page refresh (?wpcu stays in URL)
-* Fixed: Inline Blocks tab now detects and displays inline scripts and styles
-* Fixed: Close button properly strips ?wpcu so refresh after close won't reopen
-* Improved: Version-stamped asset files for easier cache debugging
-* Improved: Updated readme with PHP 8.0 requirement explanation and inline blocks FAQ
-
-= 1.0.0 =
-* Initial release
-
-== Upgrade Notice ==
-
-= 1.4.3 =
-Hotfix for 1.5.0. Fixes 500 errors on POST /rules (second asset deactivation, AI Scanner rule import). Includes defensive auto-heal for a legacy `identity_key` schema drift seen on pre-release dev installs. No deactivate/activate required.
-
-= 1.1.0 =
-Panel persistence and inline block detection fixes. Bump to v1.1.0 recommended.
+For the complete release history, see `changelog.txt` in the plugin folder.
