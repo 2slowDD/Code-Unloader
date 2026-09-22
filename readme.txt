@@ -2,7 +2,7 @@
 Contributors: dalibord
 Tags: unload css, unload javascript, asset manager, script manager, dequeue
 Requires at least: 6.2
-Tested up to: 7.1
+Tested up to: 7.1.2
 Requires PHP: 8.0
 Stable tag: 1.4.11
 License: GPL-2.0-or-later
