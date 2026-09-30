@@ -1,18 +1,18 @@
-=== Code Unloader – Unload CSS & JavaScript Per Page ===
+=== Code Unloader – Unload Unused CSS, JS & Assets Per Page ===
 Contributors: dalibord
-Tags: unload css, unload javascript, asset manager, script manager, dequeue
+Tags: unload assets, unload javascript, unload css, asset manager, dequeue
 Requires at least: 6.2
-Tested up to: 7.1.2
+Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.4.11
+Stable tag: 1.4.12
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Unload unused plugin CSS and JavaScript by page without code. Reduce HTTP requests and page weight with safe, reversible asset rules.
+Unload unused CSS, JavaScript and other plugin assets per page, without code. Fewer HTTP requests, less page weight, safe and reversible unload rules.
 
 == Description ==
 
-Code Unloader is a free WordPress asset manager that lets you unload unused plugin CSS and JavaScript on selected pages without writing PHP. Reduce HTTP requests and page weight by loading files only where they are needed, with a one-click kill switch and per-request bypass for quick rollback.
+Code Unloader is a free WordPress asset manager and script manager that lets you unload unused plugin CSS and JavaScript (JS) on selected pages without writing PHP. Unload assets where a page does not need them and keep them everywhere else. Reduce HTTP requests and page weight by loading files only where they are needed, which improves page speed and performance scores, with a one-click kill switch and per-request bypass for quick rollback.
 
 One WordPress.org user unloaded eight JavaScript files and two CSS files from the homepage, reducing it by 634.2 KB and improving PageSpeed from 96 to 99. Results vary by site and depend on which assets can be safely unloaded.
 
@@ -24,6 +24,7 @@ Read the review:
 * Unload contact-form CSS and JavaScript from pages without a form
 * Stop WooCommerce assets from loading on pages that do not use shop features
 * Unload slider, sharing, popup, or page-builder files where they are not needed
+* Unload JS and CSS only for mobile visitors, or only for desktop
 * Create different asset rules for desktop and mobile visitors
 * Apply rules to one URL, a group of URLs, post types, or conditional page types
 
@@ -41,6 +42,10 @@ The frontend panel groups assets by plugin, theme, or WordPress Core, making it 
 
 Official plugin homepage:
 [https://wpservice.pro/our-products/code-unloader/](https://wpservice.pro/our-products/code-unloader/)
+
+= Unload assets per page: scripts, styles and plugin files =
+
+WordPress registers each script and stylesheet by handle, and most plugins enqueue theirs on every page. Code Unloader dequeues those handles on the pages you choose, so a form script, slider stylesheet or page-builder bundle loads only where it is used. It works on registered files from plugins, themes and WordPress core alike, and shows you the file's source before you unload it.
 
 = Main features =
 
@@ -83,6 +88,14 @@ No. Code Unloader unloads an entire registered CSS file on pages that do not nee
 = Can I unload plugin CSS and JavaScript without writing code? =
 
 Yes. Open the frontend asset panel, switch off the asset, and choose where the rule should apply. You do not need to add PHP snippets or edit theme files.
+
+= How do I unload JavaScript (JS) or CSS on one page only? =
+
+Open that page with **⚡ Assets** in the Admin Toolbar, switch the file off, and choose **exact URL** as the match. The rule dequeues the file on that page only; every other page keeps loading it.
+
+= Can I unload assets on mobile only, or desktop only? =
+
+Yes. Each rule has a device setting: all visitors, mobile only, or desktop only. A mobile-only rule leaves the desktop page untouched.
 
 = Can unloading an asset break a page? =
 
@@ -131,13 +144,15 @@ PHP 8.0 or higher. The plugin will not activate on PHP 7.x.
 
 == Changelog ==
 
+= 1.4.12 =
+* Changed: the AI Assets Scanner sidebar card now links to Dr. Speed: AI Assets Scanner on WordPress.org.
+* Changed: readme wording for the plugin directory search (unload assets, unload JS and CSS per page, page speed); "Tested up to" corrected to 7.1.
+
 = 1.4.11 =
 * Added: filter the Rules tab by URL. A new URL/Group switch sits at the top of the rules list; pick a URL to see only the rules stored for that page. The list opens on "All URLs".
 * Changed: the rules toolbar now filters by URL or by Group, one at a time, instead of by Group only.
 * Changed: tested WordPress compatibility updated to 7.1 and plugin version bumped to 1.4.11.
 * Changed: reworded the AI Assets Scanner sidebar card.
 
-= 1.4.10 =
-* Fixed: after re-enabling one asset from the frontend panel, later disabled rows no longer inherit duplicate toggle listeners that could open the Disable Asset dialog instead of the re-enable scope chooser.
 
 For the complete release history, see `changelog.txt` in the plugin folder.

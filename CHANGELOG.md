@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.12 - 2026-09-30
+
+### Changed
+
+- **Sidebar card links to WordPress.org.** The "AI Assets Scanner" card in the admin sidebar now points to Dr. Speed: AI Assets Scanner on WordPress.org (`https://wordpress.org/plugins/dr-speed-ai-assets-scanner/`) instead of wpservice.pro, and its heading carries the Dr. Speed name.
+- **readme.txt for the plugin directory search** (what the dashboard's Add Plugin search runs). Name: "Code Unloader – Unload Unused CSS, JS & Assets Per Page". Tags (five count): `unload assets, unload javascript, unload css, asset manager, dequeue`; "script manager" and "JS" move into the name and text. Short description ≤150 characters. New "Unload assets per page" section and two FAQs ("unload JavaScript (JS) or CSS on one page only", "unload assets on mobile only"). The readme changelog keeps the two latest releases; older entries stay in `changelog.txt`.
+- **`Tested up to` corrected from `7.1.2` to `7.1`.** The directory's readme parser accepts only major.minor here and treats a patch number as invalid.
+- Version bumped to 1.4.12.
+
+---
+
 ## 1.4.11 - 2026-08-31
 
 ### Added

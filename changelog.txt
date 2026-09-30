@@ -1,6 +1,10 @@
 === Code Unloader – Full Changelog ===
 
 
+= 1.4.12 =
+* Changed: the AI Assets Scanner sidebar card now links to Dr. Speed: AI Assets Scanner on WordPress.org.
+* Changed: readme wording for the plugin directory search (unload assets, unload JS and CSS per page, page speed); "Tested up to" corrected to 7.1.
+
 = 1.4.11 =
 * Added: filter the Rules tab by URL. A new URL/Group switch sits at the top of the rules list; pick a URL to see only the rules stored for that page. The list opens on "All URLs".
 * Changed: the rules toolbar now filters by URL or by Group, one at a time, instead of by Group only.
